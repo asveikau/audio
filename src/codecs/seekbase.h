@@ -1,0 +1,33 @@
+/*
+ Copyright (C) 2017 Andrew Sveikauskas
+
+ Permission to use, copy, modify, and distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+*/
+
+#ifndef seekbase_h_
+#define seekbase_h_
+
+#include "rollback.h"
+
+namespace audio {
+
+class SeekBase
+{
+   uint64_t cachedDuration;
+protected:
+   virtual uint64_t GetPosition(void) = 0;
+   virtual uint64_t GetNextDuration(void) = 0;
+   virtual void SeekToStart(error *err) = 0;
+   virtual void SkipFrame(error *err) = 0;
+   virtual void CapturePosition(RollbackBase **rollback, error *err) = 0;
+public:
+   SeekBase(uint64_t duration = 0);
+   void Seek(uint64_t pos, error *err);
+   uint64_t GetDuration(error *err);
+};
+
+} // end namespace
+
+#endif

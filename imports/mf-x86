@@ -1,0 +1,11 @@
+[mfplat]
+MFStartup@8,com
+MFShutdown@0,com
+MFCreateAsyncResult@16,com
+MFInvokeCallback@4,com
+MFCreateAttributes@8,com
+MFCreateMediaType@4,com
+MFCreateWaveFormatExFromMFMediaType@16,com
+
+[mfreadwrite]
+MFCreateSourceReaderFromByteStream@12,com
