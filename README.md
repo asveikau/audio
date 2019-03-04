@@ -13,7 +13,7 @@ It is subject to the following design considerations:
 Browsing in [`include`][2] or the [test app][3] is probably your best start.
 Overview of functionality:
 
-* [`AudioDevice.h`][5] abstracts the output device, giving various platforms a synchronous write() style interface.
+* [`AudioDevice.h`][4] abstracts the output device, giving various platforms a synchronous write() style interface.
 
 * [`AudioSource.h`][5] abstracts decoding and file format.
     - [`AudioCodec.h`][6] is how an application instantiates these.
