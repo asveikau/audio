@@ -29,8 +29,10 @@
 
 namespace {
 
-struct WakeLock : public common::RefCountable
+struct WakeLock
 {
+   WakeLock(const WakeLock&) = delete;
+
 #if defined(__APPLE__)
    IOPMAssertionID id;
    bool valid;
@@ -63,14 +65,12 @@ struct WakeLock : public common::RefCountable
 #endif
 
 #if defined(_WINDOWS)
-   common::WorkerThread *w;
-
-   WakeLock() : w(nullptr) {}
+   std::unique_ptr<common::WorkerThread> w;
 
    void
    Initialize(error *err)
    {
-      common::New(&w, err);
+      common::New(w, err);
       ERROR_CHECK(err);
 
       w->Schedule(
@@ -90,9 +90,11 @@ struct WakeLock : public common::RefCountable
    exit:;
    }
 
+   WakeLock() {}
+
    ~WakeLock()
    {
-      if (w)
+      if (w.get())
       {
          w->Schedule(
             [] (error *err) -> void
@@ -100,96 +102,61 @@ struct WakeLock : public common::RefCountable
                SetThreadExecutionState(ES_CONTINUOUS);
             }
          );
-         delete w;
       }
    }
+
 #endif
 };
 
 template<typename T>
-class WeakCache : public common::RefCountable
+class WeakCache
 {
-   volatile T *cache;
+   std::weak_ptr<T> cache;
    std::mutex m;
 public:
-   WeakCache() : cache(nullptr) {}
 
-   bool
-   TryGet(T** p)
+   WeakCache() {}
+   WeakCache(const WeakCache &) = delete;
+
+   template<typename Fn>
+   void
+   Get(std::shared_ptr<T> &p, Fn create, error *err)
    {
-      *p = nullptr;
-
-      if (cache)
+      if (!(p = cache.lock()))
       {
          common::locker l;
          l.acquire(m);
-         if ((*p = (T*)cache))
-         {
-            (*p)->AddRef();
-         }
+
+         if ((p = cache.lock()))
+            goto exit;
+
+         auto q = create(err);
+         ERROR_CHECK(err);
+         cache = p = std::move(q);
       }
-      return (*p) ? true : false;
-   }
-
-   void
-   TryDelete(T *ptr)
-   {
-      common::locker l;
-
-      l.acquire(m);
-      if (ptr->Release() && cache == ptr)
-         cache = nullptr;
-   }
-
-   void
-   TryPut(T *ptr)
-   {
-      common::locker l;
-
-      l.acquire(m);
-      cache = ptr;
+   exit:;
    }
 };
 
-static
-common::Pointer<WeakCache<WakeLock>> cache;
-static
-lazy_init_state cacheInit;
-
 struct WakeLockWrapper : public common::RefCountable
 {
-   WakeLock *p;
-   common::Pointer<WeakCache<WakeLock>> cache;
-
-   WakeLockWrapper() : p(nullptr) {}
-   ~WakeLockWrapper() { if (p) cache->TryDelete(p); }
+   std::shared_ptr<WakeLock> p;
 
    void
    Initialize(error *err)
    {
-      lazy_init(
-         &cacheInit,
-         [] (void *context, error *err) -> void
+      static WeakCache<WakeLock> cache;
+
+      cache.Get(
+         p,
+         [] (error *err) -> std::shared_ptr<WakeLock>
          {
-            New(::cache.GetAddressOf(), err);
+            std::shared_ptr<WakeLock> r;
+            common::New(r, err);
+            return r;
          },
-         nullptr,
          err
       );
-      ERROR_CHECK(err);
-      cache = ::cache;
-
-      if (!cache->TryGet(&p))
-      {
-         New(&p, err);
-         ERROR_CHECK(err);
-
-         p->Initialize(err);
-         ERROR_CHECK(err);
-
-         cache->TryPut(p);
-      }
-   exit:;
    }
 };
 
