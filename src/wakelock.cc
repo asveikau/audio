@@ -153,6 +153,10 @@ struct WakeLockWrapper : public common::RefCountable
          {
             std::shared_ptr<WakeLock> r;
             common::New(r, err);
+            ERROR_CHECK(err);
+            r->Initialize(err);
+            ERROR_CHECK(err);
+         exit:
             return r;
          },
          err
