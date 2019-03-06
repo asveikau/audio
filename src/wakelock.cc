@@ -8,7 +8,6 @@
 
 #include "wakelock.h"
 #include <common/c++/new.h>
-#include <common/lazy.h>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
