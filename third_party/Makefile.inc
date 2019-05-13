@@ -6,6 +6,15 @@ LIBOGG_SRC:=\
    $(LIBOGG_ROOT)src/bitwise.c \
    $(LIBOGG_ROOT)src/framing.c
 
+$(LIBOGG_ROOT)include/ogg/config_types.h:
+	(echo '#include <stdint.h>'; \
+	echo typedef int16_t ogg_int16_t\;; \
+	echo typedef uint16_t ogg_uint16_t\;; \
+	echo typedef int32_t ogg_int32_t\;; \
+	echo typedef uint32_t ogg_uint32_t\;; \
+	echo typedef int64_t ogg_int64_t\;) \
+	> "$@"
+
 LIBAUDIO_SUBLIBS+=LIBOGG_SRC
 
 OPENCORE_AUDIO_ROOT:=$(LIBAUDIO_ROOT)third_party/opencore-audio/
