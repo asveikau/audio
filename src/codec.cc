@@ -43,6 +43,16 @@ void audio::OpenCodec(Stream *file, CodecArgs *params, Source **obj, error *err)
       params = &paramsStorage;
    }
 
+   if (!params->SlowSeek)
+   {
+      common::StreamInfo info;
+
+      file->GetStreamInfo(&info, err);
+      ERROR_CHECK(err);
+
+      params->SlowSeek = info.IsRemote;
+   }
+
    if (!codecList.HasItems())
       ERROR_SET(err, unknown, "No codecs registered.");
 
