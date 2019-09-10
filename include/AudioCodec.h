@@ -24,9 +24,8 @@ namespace audio {
 struct CodecArgs
 {
    uint64_t Duration;
-   bool SlowSeek;
 
-   CodecArgs() : Duration(0), SlowSeek(false) {}
+   CodecArgs() : Duration(0) {}
 };
 
 struct Codec : public RefCountable

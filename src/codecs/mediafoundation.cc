@@ -604,7 +604,15 @@ public:
    )
    {
       this->stream = stream;
-      this->slowSeek = args.SlowSeek;
+
+      error err;
+      common::StreamInfo info;
+      stream->GetStreamInfo(&info, &err);
+      if (ERROR_FAILED(&err))
+         return E_FAIL;
+
+      this->slowSeek = info.IsRemote;
+
       return S_OK;
    }
 
@@ -639,8 +647,10 @@ public:
    {
       *caps = MFBYTESTREAM_IS_READABLE |
               MFBYTESTREAM_IS_SEEKABLE;
+
       if (slowSeek)
          *caps |= (MFBYTESTREAM_IS_REMOTE | MFBYTESTREAM_HAS_SLOW_SEEK);
+
       return S_OK;
    }
 
