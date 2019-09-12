@@ -9,6 +9,7 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 #include <AudioCodec.h>
+#include "seekbase.h"
 
 #include <common/c++/new.h>
 
@@ -90,6 +91,9 @@ public:
       // I/O callbacks can't handle non-zero start offset.
       //
       file->Seek(0, SEEK_SET, err);
+      ERROR_CHECK(err);
+
+      ContainerHasSlowSeek = IsSlowSeekContainer(file, err);
       ERROR_CHECK(err);
 
       status = AudioFileOpenWithCallbacks(
@@ -225,6 +229,18 @@ public:
       cachedDuration = r;
    exit:
       return r;
+   }
+
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      info->DurationKnown = cachedDuration != 0;
+
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
 private:

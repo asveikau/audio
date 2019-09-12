@@ -91,6 +91,16 @@ public:
       return op_pcm_total(file, -1) * 10000000LL / 48000;
    }
 
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
+   }
+
 private:
 
    void

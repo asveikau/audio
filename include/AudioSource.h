@@ -54,9 +54,18 @@ struct Metadata
    Format Format;
 };
 
+struct StreamInfo
+{
+   common::StreamInfo FileStreamInfo;
+   bool ContainerHasSlowSeek;
+   bool DurationKnown;
+
+   StreamInfo() : ContainerHasSlowSeek(false), DurationKnown(true) {}
+};
+
 struct Source : public RefCountable
 {
-   Source() : MetadataChanged(false) {}
+   Source() : MetadataChanged(false), ContainerHasSlowSeek(false) {}
 
    // Read() may change this to true, indicating you need to
    // GetMetadata() again and possibly re-initialize the device.
@@ -64,6 +73,8 @@ struct Source : public RefCountable
    // container formats.
    //
    bool MetadataChanged;
+
+   virtual void GetStreamInfo(StreamInfo *info, error *err);
 
    // A short, programmer-ese string to describe the audio format.
    //
@@ -92,6 +103,12 @@ struct Source : public RefCountable
    // in 100ns units.
    //
    virtual uint64_t GetPosition(error *err) = 0;
+
+protected:
+   // Set by a subclass to indicate that the format has slow seeking.
+   // (eg. ADTS)
+   //
+   bool ContainerHasSlowSeek;
 };
 
 } // namespace

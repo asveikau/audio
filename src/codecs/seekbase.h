@@ -10,6 +10,7 @@
 #define seekbase_h_
 
 #include "rollback.h"
+#include <common/c++/stream.h>
 
 namespace audio {
 
@@ -26,7 +27,11 @@ public:
    SeekBase(uint64_t duration = 0);
    void Seek(uint64_t pos, error *err);
    uint64_t GetDuration(error *err);
+   bool GetDurationKnown(void) const { return cachedDuration != 0; }
 };
+
+bool
+IsSlowSeekContainer(common::Stream *str, error *err);
 
 } // end namespace
 

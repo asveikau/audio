@@ -48,7 +48,8 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/codec.cc \
    $(LIBAUDIO_ROOT)src/wakelock.cc \
    $(LIBAUDIO_ROOT)src/dev/wrapper.cc \
-   $(LIBAUDIO_ROOT)src/player.cc
+   $(LIBAUDIO_ROOT)src/player.cc \
+   $(LIBAUDIO_ROOT)src/source.cc
 
 ifneq (, $(filter $(PLATFORM),netbsd sunos))
 LIBAUDIO_SRC+=\

@@ -90,6 +90,8 @@ public:
       startOfData(0),
       currentPos(0)
    {
+      ContainerHasSlowSeek = true;
+
       maxPacketSize = *sizes++;
       for (--nSizes; nSizes--; ++sizes)
       {
@@ -149,6 +151,18 @@ public:
    uint64_t GetDuration(error *err) 
    {
       return SeekBase::GetDuration(err);
+   }
+
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      info->DurationKnown = SeekBase::GetDurationKnown();
+
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
 protected:

@@ -1265,6 +1265,12 @@ public:
    exit:
       return r;
    }
+
+   void
+   GetStreamInfo(common::StreamInfo *info, error *err)
+   {
+      stream->GetStreamInfo(info, err);
+   }
 };
 
 class Mp4DemuxStreamWithSimpleHeader : public Mp4DemuxStream

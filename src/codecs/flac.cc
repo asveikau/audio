@@ -242,6 +242,16 @@ public:
              FLAC__stream_decoder_get_sample_rate(file);
    }
 
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
+   }
+
 private:
 
    static FLAC__StreamDecoderWriteStatus

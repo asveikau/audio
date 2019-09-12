@@ -184,6 +184,8 @@ public:
       startOfData(0),
       currentPos(0)
    {
+      ContainerHasSlowSeek = true;
+
       pMem = new char[pvmp3_decoderMemRequirements()];
       memset(&decoderExt, 0, sizeof(decoderExt));
       pvmp3_InitDecoder(&decoderExt, pMem);
@@ -361,7 +363,6 @@ rescan:
    exit:;
    }
 
-
    uint64_t
    SamplesToUnits(uint64_t samples, uint64_t rate)
    {
@@ -372,6 +373,18 @@ rescan:
    GetDuration(const ParsedFrameHeader &header)
    {
       return SamplesToUnits(header.SamplesPerFrame, header.SampleRate);
+   }
+
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      info->DurationKnown = SeekBase::GetDurationKnown();
+
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
    void

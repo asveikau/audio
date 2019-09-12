@@ -9,6 +9,7 @@
 #include <AudioSource.h>
 #include "seekbase.h"
 
+#include <string.h>
 #include <errno.h>
 
 using namespace common;
@@ -78,5 +79,35 @@ audio::SeekBase::GetDuration(error *err)
    cachedDuration = r;
 exit:
    if (rollback) delete rollback;
+   return r;
+}
+
+
+//
+// XXX this breaks some abstractions, we'll take some guesses about some common
+// container formats.
+//
+
+bool
+audio::IsSlowSeekContainer(common::Stream *stream, error *err)
+{
+   bool r = false;
+   unsigned char buf[4];
+   int len = 0;
+   auto oldPos = stream->GetPosition(err);
+   ERROR_CHECK(err);
+
+   len = stream->Read(buf, sizeof(buf), err);
+   ERROR_CHECK(err);
+
+   stream->Seek(SEEK_SET, oldPos, err);
+   ERROR_CHECK(err);
+
+   if (len >= 3 && !memcmp(buf, "AMR", 3))
+      r = true;
+   else if (len >= 2 && buf[0] == 0xff && (buf[1] & 0xf0) == 0xf0)
+      r = true;
+
+exit:
    return r;
 }

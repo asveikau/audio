@@ -7,6 +7,7 @@
 */
 
 #include <AudioCodec.h>
+#include "seekbase.h"
 #include <common/misc.h>
 #include <common/c++/new.h>
 
@@ -47,6 +48,7 @@ MFStartup_Release(VOID);
 
 class MFSource : public Source
 {
+   Pointer<Stream> stream;
    ComPtr<IMFSourceReader> reader;
    ComPtr<IMFSample> currentSample;
    INT currentBufferIndex;
@@ -139,7 +141,12 @@ public:
       ComPtr<IMFAttributes> attrs;
       ComPtr<IMFMediaType> pcmMediaType;
 
+      this->stream = file;
+
       cachedDuration = params.Duration;
+
+      ContainerHasSlowSeek = IsSlowSeekContainer(file, err);
+      ERROR_CHECK(err);
 
       hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
       if (FAILED(hr)) ERROR_SET(err, win32, hr);
@@ -457,6 +464,18 @@ public:
    exit:
       PropVariantClear(&prop);
       return r;
+   }
+
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      info->DurationKnown = cachedDuration != 0;
+
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
 private:

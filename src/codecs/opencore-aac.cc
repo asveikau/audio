@@ -109,6 +109,8 @@ public:
       startOfData(0),
       currentPos(0)
    {
+      ContainerHasSlowSeek = true;
+
       pMem = new char[PVMP4AudioDecoderGetMemRequirements()];
       memset(&decoderExt, 0, sizeof(decoderExt));
       PVMP4AudioDecoderInitLibrary(&decoderExt, pMem);
@@ -211,6 +213,18 @@ public:
    uint64_t GetDuration(error *err) 
    {
       return SeekBase::GetDuration(err);
+   }
+
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      info->DurationKnown = SeekBase::GetDurationKnown();
+
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
 private:

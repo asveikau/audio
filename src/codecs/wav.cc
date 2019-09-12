@@ -181,6 +181,18 @@ public:
    exit:
       return r;
    }
+
+   void GetStreamInfo(audio::StreamInfo *info, error *err)
+   {
+      stream->GetStreamInfo(&info->FileStreamInfo, err);
+      ERROR_CHECK(err);
+
+      info->DurationKnown = info->FileStreamInfo.FileSizeKnown;
+
+      Source::GetStreamInfo(info, err);
+      ERROR_CHECK(err);
+   exit:;
+   }
 };
 
 struct WavCodec : public Codec
