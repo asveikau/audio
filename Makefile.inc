@@ -150,6 +150,7 @@ ifdef WINDOWS
 	rm -f $(LIBAUDIO_ROOT)thirdparty_*.lib
 	$(foreach i, $(LIBAUDIO_SUBLIBS), $(LIBWRAPPER) $(shell $(SRC2OBJ) $($(i)))${\n}mv $@ $(LIBAUDIO_ROOT)thirdparty_$(i).lib${\n})
 	$(LIB) /out:$@ $(LIBAUDIO_ROOT)thirdparty_*.lib
+	rm -f $(LIBAUDIO_ROOT)thirdparty_*.lib
 else
 	$(LIBWRAPPER) $(LIBAUDIO_OBJS)
 endif
