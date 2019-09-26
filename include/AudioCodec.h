@@ -15,6 +15,7 @@
 #define audiocodec_h_
 
 #include "AudioSource.h"
+#include "AudioTags.h"
 
 namespace audio {
 
@@ -24,8 +25,9 @@ namespace audio {
 struct CodecArgs
 {
    uint64_t Duration;
+   MetadataReceiver *Metadata;
 
-   CodecArgs() : Duration(0) {}
+   CodecArgs() : Duration(0), Metadata(nullptr) {}
 };
 
 struct Codec : public RefCountable

@@ -46,6 +46,8 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/codecs/opusfile.cc \
    $(LIBAUDIO_ROOT)src/codecs/flac.cc \
    $(LIBAUDIO_ROOT)src/codec.cc \
+   $(LIBAUDIO_ROOT)src/enum.cc \
+   $(LIBAUDIO_ROOT)src/id3.cc \
    $(LIBAUDIO_ROOT)src/wakelock.cc \
    $(LIBAUDIO_ROOT)src/dev/wrapper.cc \
    $(LIBAUDIO_ROOT)src/player.cc \

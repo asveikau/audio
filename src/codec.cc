@@ -11,7 +11,7 @@
 #include <common/logger.h>
 #include <common/c++/registrationlist.h>
 
-#include "codecs/id3.h"
+#include "id3.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -46,8 +46,6 @@ void audio::OpenCodec(Stream *file, CodecArgs *params, Source **obj, error *err)
    if (!codecList.HasItems())
       ERROR_SET(err, unknown, "No codecs registered.");
 
-   n = sizeof(Id3Header);
-
    codecList.ForEach(
       [&n] (Codec *p, error *err) -> void
       {
@@ -74,12 +72,26 @@ retry:
       ERROR_CHECK(err);
    }
 
-   if (!id3Checked && n > sizeof(Id3Header))
+   if (!id3Checked)
    {
-      auto id3 = (const Id3Header*)start;
-      if (id3->HasMagic())
+      id3::Parser id3;
+
+      if (id3.InitialParse(start, n, err))
       {
-         auto newOrigin = id3->ReadSize() + 10;
+         if (params->Metadata)
+         {
+            file->Seek(origin + sizeof(id3::Header), SEEK_SET, err);
+            ERROR_CHECK(err);
+
+            id3.TryParse(file, params->Metadata, err);
+
+            // Failure to parse a tag shouldn't tank the whole file.
+            //
+            if (ERROR_FAILED(err))
+               error_clear(err);
+         }
+
+         auto newOrigin = origin + id3.TagLength();
          file->Seek(newOrigin, SEEK_SET, err);
          if (ERROR_FAILED(err))
             error_clear(err);
@@ -91,6 +103,7 @@ retry:
             goto retry;
          }
       }
+      ERROR_CHECK(err);
    }
 
    codecList.TryLoad(
