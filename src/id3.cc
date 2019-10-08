@@ -346,6 +346,7 @@ TryParseBom(common::Stream *file, uint32_t &size, unsigned char bom[2], error *e
    if (!memcmp(bom, "\xff\xfe", 2) || !memcmp(bom, "\xfe\xff", 2))
    {
       sawBom = true;
+      size -= 2;
       goto exit;
    }
 
