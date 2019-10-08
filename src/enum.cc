@@ -22,6 +22,7 @@ audio::ToString(StringMetadata value)
    MAP(ContentGroup);
    MAP(Artist);
    MAP(Accompaniment);
+   MAP(Composer);
    MAP(Conductor);
    MAP(Album);
    MAP(Genre);

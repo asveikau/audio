@@ -23,6 +23,7 @@ enum StringMetadata
    ContentGroup,
    Artist,
    Accompaniment,
+   Composer,
    Conductor,
    Album,
    Genre,

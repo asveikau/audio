@@ -43,6 +43,7 @@ Mappings[] =
    {String,  (int)audio::ContentGroup,  "TIT1", "TT1"},
    {String,  (int)audio::Artist,        "TPE1", "TP1"},
    {String,  (int)audio::Accompaniment, "TPE2", "TP2"},
+   {String,  (int)audio::Composer,      "TCOM", "TCM"},
    {String,  (int)audio::Conductor,     "TPE3", "TP3"},
    {String,  (int)audio::Album,         "TALB", "TAL"},
    {String,  (int)audio::Genre,         "TCON", "TCO"},
