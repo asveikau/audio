@@ -98,6 +98,9 @@ class Parser
    void
    OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync, common::Stream *file, error *err);
 
+   static const char *
+   TryParseGenre(const std::string &str);
+
 public:
    Parser() : recv(nullptr) {}
 
@@ -113,6 +116,9 @@ public:
    void
    TryParse(common::Stream *file, MetadataReceiver *recv, error *err);
 };
+
+const char *
+GetId3V1Genre(int idx);
 
 } } // end namespace
 

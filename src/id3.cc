@@ -582,7 +582,7 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
          {
             recv->OnString(
                (StringMetadata)mapping->Enum,
-               [parse] (std::string &str, error *err) -> void
+               [parse, mapping] (std::string &str, error *err) -> void
                {
                   std::vector<char> vec;
                   parse(vec, err);
@@ -590,6 +590,12 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
                   try
                   {
                      str = std::string(vec.data(), vec.size() ? vec.size() - 1 : 0);
+                     if (((StringMetadata)mapping->Enum) == Genre)
+                     {
+                        auto p = TryParseGenre(str);
+                        if (p)
+                           str = p;
+                     }
                   }
                   catch (std::bad_alloc)
                   {
@@ -1026,4 +1032,166 @@ audio::id3::Parser::TryParse(common::Stream *file, MetadataReceiver *recv, error
 
 exit:
    this->recv = nullptr;
+}
+
+const char *
+audio::id3::Parser::TryParseGenre(const std::string &str)
+{
+   if (str.length() >= 3 &&
+       str[0] == '(' &&
+       str[str.length()-1] == ')')
+   {
+      int r = 0;
+
+      for (int i=1; i<str.length()-1; ++i)
+      {
+         static const char digits[] = "0123456789";
+         const char *p = strchr(digits, str[i]);
+         if (!p)
+            return nullptr;
+         r *= 10;
+         r += (p - digits);
+      }
+
+      return GetId3V1Genre(r);
+   }
+   return nullptr;
+}
+
+const char *
+audio::id3::GetId3V1Genre(int i)
+{
+   static const char *genres[] =
+   {
+      "Blues",
+      "Classic Rock",
+      "Country",
+      "Dance",
+      "Disco",
+      "Funk",
+      "Grunge",
+      "Hip-Hop",
+      "Jazz",
+      "Metal",
+      "New Age",
+      "Oldies",
+      "Other",
+      "Pop",
+      "R&B",
+      "Rap",
+      "Reggae",
+      "Rock",
+      "Techno",
+      "Industrial",
+      "Alternative",
+      "Ska",
+      "Death Metal",
+      "Pranks",
+      "Soundtrack",
+      "Euro-Techno",
+      "Ambient",
+      "Trip-Hop",
+      "Vocal",
+      "Jazz+Funk",
+      "Fusion",
+      "Trance",
+      "Classical",
+      "Instrumental",
+      "Acid",
+      "House",
+      "Game",
+      "Sound Clip",
+      "Gospel",
+      "Noise",
+      "AlternRock",
+      "Bass",
+      "Soul",
+      "Punk",
+      "Space",
+      "Meditative",
+      "Instrumental Pop",
+      "Instrumental Rock",
+      "Ethnic",
+      "Gothic",
+      "Darkwave",
+      "Techno-Industrial",
+      "Electronic",
+      "Pop-Folk",
+      "Eurodance",
+      "Dream",
+      "Southern Rock",
+      "Comedy",
+      "Cult",
+      "Gangsta",
+      "Top 40",
+      "Christian Rap",
+      "Pop/Funk",
+      "Jungle",
+      "Native American",
+      "Cabaret",
+      "New Wave",
+      "Psychadelic",
+      "Rave",
+      "Showtunes",
+      "Trailer",
+      "Lo-Fi",
+      "Tribal",
+      "Acid Punk",
+      "Acid Jazz",
+      "Polka",
+      "Retro",
+      "Musical",
+      "Rock & Roll",
+      "Hard Rock",
+      "Folk",
+      "Folk-Rock",
+      "National Folk",
+      "Swing",
+      "Fast Fusion",
+      "Bebob",
+      "Latin",
+      "Revival",
+      "Celtic",
+      "Bluegrass",
+      "Avantgarde",
+      "Gothic Rock",
+      "Progressive Rock",
+      "Psychedelic Rock",
+      "Symphonic Rock",
+      "Slow Rock",
+      "Big Band",
+      "Chorus",
+      "Easy Listening",
+      "Acoustic",
+      "Humour",
+      "Speech",
+      "Chanson",
+      "Opera",
+      "Chamber Music",
+      "Sonata",
+      "Symphony",
+      "Booty Bass",
+      "Primus",
+      "Porn Groove",
+      "Satire",
+      "Slow Jam",
+      "Club",
+      "Tango",
+      "Samba",
+      "Folklore",
+      "Ballad",
+      "Power Ballad",
+      "Rhythmic Soul",
+      "Freestyle",
+      "Duet",
+      "Punk Rock",
+      "Drum Solo",
+      "A capella",
+      "Euro-House",
+      "Dance Hall",
+   };
+
+   if (i >= 0 && i < ARRAY_SIZE(genres))
+      return genres[i];
+   return nullptr;
 }
