@@ -617,7 +617,7 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
 
                   if ((p = strchr(vec.data(), '/')))
                   {
-                     auto q = &(*p++ = 0);
+                     auto q = &(*p = 0) + 1;
                      auto total = strtoll(q, &p, 10);
                      recv->OnInteger(
                         (IntegerMetadata)(mapping->Enum + 1),
