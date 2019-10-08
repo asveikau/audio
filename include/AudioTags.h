@@ -40,6 +40,7 @@ enum IntegerMetadata
    Disc,
    DiscCount,     // NB: needs to follow Disc
    Year,
+   OriginalYear,
 };
 
 const char *

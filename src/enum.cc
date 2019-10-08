@@ -41,6 +41,7 @@ audio::ToString(IntegerMetadata value)
    MAP(Disc);
    MAP(DiscCount);
    MAP(Year);
+   MAP(OriginalYear);
    }
    return "<invalid>";
 }

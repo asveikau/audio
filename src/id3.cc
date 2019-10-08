@@ -52,6 +52,7 @@ Mappings[] =
    {Integer, (int)audio::Track,         "TRCK", "TRK"},
    {Integer, (int)audio::Disc,          "TPOS", "TPA"},
    {Integer, (int)audio::Year,          "TYER", "TYE"},
+   {Integer, (int)audio::OriginalYear,  "TORY", ""   },
 
    {Binary,  (int)audio::Image,         "APIC", "PIC"},
 };
@@ -514,7 +515,13 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
 
    for (; mapping < Mappings + ARRAY_SIZE(Mappings); ++mapping)
    {
-      if (!memcmp(header->Id, legacy ? mapping->LegacyId : mapping->Id, legacy ? 3 : 4))
+      auto id = legacy ? mapping->LegacyId : mapping->Id;
+      auto idLen = legacy ? 3 : 4;
+
+      if (!*id)
+         continue;
+
+      if (!memcmp(header->Id, id, idLen))
       {
          break;
       }
