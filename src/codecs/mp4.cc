@@ -307,11 +307,13 @@ struct ParsedMoovBox
    uint32_t Duration;
    std::vector<Track> Tracks;
    MetadataReceiver *Metadata;
+   bool MetadataOnly;
 
    ParsedMoovBox() :
       TimeScale(0),
       Duration(0),
-      Metadata(nullptr)
+      Metadata(nullptr),
+      MetadataOnly(false)
    {
    }
 };
@@ -1069,6 +1071,8 @@ ParseUdta(
    );
 }
 
+struct Mp4ParseFinished {};
+
 void
 ParseMoov(
    Stream *stream,
@@ -1082,12 +1086,16 @@ ParseMoov(
       length,
       [&stream, &err, &moov] (const ParsedBoxHeader &header)
       {
-         if (!memcmp(header.Type, "mvhd", 4))
+         if (!memcmp(header.Type, "mvhd", 4) && !moov.MetadataOnly)
             ParseMvhd(stream, header.Size, moov, err);
-         else if (!memcmp(header.Type, "trak", 4))
+         else if (!memcmp(header.Type, "trak", 4) && !moov.MetadataOnly)
             ParseTrak(stream, header.Size, moov, err);
          else if (moov.Metadata && !memcmp(header.Type, "udta", 4))
+         {
             ParseUdta(stream, header.Size, moov.Metadata, err);
+            if (moov.MetadataOnly)
+               throw Mp4ParseFinished();
+         }
       },
       err
    );
@@ -1099,8 +1107,6 @@ struct ParsedMp4File
    uint64_t MdatStart;
    uint64_t MdatLength;
 };
-
-struct Mp4ParseFinished {};
 
 void ParseMp4File(
    Stream *stream,
@@ -1581,6 +1587,10 @@ protected:
 
 struct Mp4Codec : public Codec
 {
+   bool MetadataOnly;
+
+   Mp4Codec() : MetadataOnly(false) {}
+
    int GetBytesRequiredForDetection() { return 8; }
 
    void TryOpen(
@@ -1597,6 +1607,9 @@ struct Mp4Codec : public Codec
       uint64_t pos = 0, duration = 0;
       const char *codecName = nullptr;
 
+      if (MetadataOnly && !params.Metadata)
+         goto exit;
+
       if (memcmp((const char*)firstBuffer + 4, "ftyp", 4))
          goto exit;
 
@@ -1604,6 +1617,7 @@ struct Mp4Codec : public Codec
       ERROR_CHECK(err);
 
       mp4.Moov.Metadata = params.Metadata;
+      mp4.Moov.MetadataOnly = this->MetadataOnly;
 
       ParseMp4File(file, mp4, err);
       ERROR_CHECK(err);
@@ -1689,6 +1703,8 @@ struct Mp4Codec : public Codec
 
 } // end namespace
 
+#if defined(HAVE_MP4_DEMUX)
+
 void
 audio::RegisterMp4Codec(error *err)
 {
@@ -1700,3 +1716,20 @@ audio::RegisterMp4Codec(error *err)
 exit:;
 }
 
+#endif
+
+#if defined(HAVE_MP4_METADATA_ONLY)
+
+void
+audio::RegisterMp4CodecForMetadataParse(error *err)
+{
+   Pointer<Mp4Codec> p;
+   New(p.GetAddressOf(), err);
+   ERROR_CHECK(err);
+   p->MetadataOnly = true;
+   RegisterCodec(p.Get(), err);
+   ERROR_CHECK(err);
+exit:;
+}
+
+#endif

@@ -111,10 +111,19 @@ ifneq (, $(USE_OPENCORE_MP3)$(USE_OPENCORE_AAC))
 LIBAUDIO_SRC+=\
    $(LIBAUDIO_ROOT)src/codecs/adts.cc
 endif
-ifneq (, $(USE_OPENCORE_AMR)$(USE_OPENCORE_MP3)$(USE_OPENCORE_AAC))
+
+# This used to be conditional, but now we need it unconditionally for
+# metadata.
+#
 LIBAUDIO_SRC+=\
    $(LIBAUDIO_ROOT)src/codecs/mp4.cc
+
+ifneq (, $(USE_OPENCORE_AMR)$(USE_OPENCORE_MP3)$(USE_OPENCORE_AAC))
 LIBAUDIO_CFLAGS+=-DHAVE_MP4_DEMUX
+endif
+
+ifneq (, $(filter $(PLATFORM),windows darwin))
+LIBAUDIO_CFLAGS+=-DHAVE_MP4_METADATA_ONLY
 endif
 
 ifdef USE_OPENCORE_MP3

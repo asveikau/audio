@@ -74,6 +74,7 @@ void CreateOpenCoreMp3Codec(Codec **out, error *err);
 void RegisterAdtsCodec(error *err);
 
 void RegisterMp4Codec(error *err);
+void RegisterMp4CodecForMetadataParse(error *err);
 
 void CreateVorbisSource(
    common::Stream *file, 

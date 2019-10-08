@@ -160,6 +160,11 @@ audio::RegisterCodecs(void)
    error_clear(&err);
 #endif
 
+#if defined(HAVE_MP4_METADATA_ONLY)
+   RegisterMp4CodecForMetadataParse(&err);
+   error_clear(&err);
+#endif
+
 #if defined(USE_OPENCORE_AMR)
    RegisterOpenCoreAmrCodec(&err);
    error_clear(&err);
