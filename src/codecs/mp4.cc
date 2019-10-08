@@ -13,6 +13,7 @@
 
 #include <vector>
 #include <functional>
+#include <string>
 #include <string.h>
 #include <errno.h>
 
@@ -305,10 +306,12 @@ struct ParsedMoovBox
    uint32_t TimeScale;
    uint32_t Duration;
    std::vector<Track> Tracks;
+   MetadataReceiver *Metadata;
 
    ParsedMoovBox() :
       TimeScale(0),
-      Duration(0)
+      Duration(0),
+      Metadata(nullptr)
    {
    }
 };
@@ -894,6 +897,179 @@ exit:;
 }
 
 void
+ParseMetadataBox(
+   Stream *stream,
+   const ParsedBoxHeader &header,
+   MetadataReceiver *recv,
+   error *err
+)
+{
+   auto onData =
+      [stream, header, recv, &err] (uint64_t off, uint32_t len) -> void
+      {
+         enum TypeEnum
+         {
+            String,
+            Integer,
+            Binary,
+         };
+         struct Tag
+         {
+            TypeEnum DataType;
+            int Enum;
+            unsigned char Mp4Type[5];
+         };
+         static const Tag tags[] =
+         {
+            {String,  Title,         "\xa9""nam"},
+            {String,  Album,         "\xa9""alb"},
+            {String,  Artist,        "\xa9""ART"},
+            {String,  Accompaniment, "aART"},
+            {String,  Composer,      "\xa9""wrt"},
+            {String,  ContentGroup,  "\xa9""grp"},
+            {String,  Genre,         "\xa9""gen"},
+
+            {Integer, Year,          "\xa9""day"},
+         };
+
+         for (auto p = tags; p < tags + ARRAY_SIZE(tags); ++p)
+         {
+            if (!memcmp(p->Mp4Type, header.Type, 4))
+            {
+               auto parse = [stream, off, len] (Stream **out, error *err) -> void
+               {
+                  stream->Substream(off, len, out, err);
+               };
+               auto parseString = [stream, off, len] (std::string &str, error *err) -> void
+               {
+                  std::vector<char> vec;
+                  stream->Seek(off, SEEK_SET, err);
+                  ERROR_CHECK(err);
+                  try
+                  {
+                     vec.resize(len);
+                     vec.resize(stream->Read(vec.data(), len, err));
+                     ERROR_CHECK(err);
+                     while (vec.size() && !vec[vec.size()-1])
+                        vec.resize(vec.size()-1);
+                     str = std::string(vec.data(), vec.size());
+                  }
+                  catch (std::bad_alloc)
+                  {
+                     ERROR_SET(err, nomem);
+                  }
+               exit:;
+               };
+               auto parseInt = [&parseString] (int64_t &i, error *err) -> void
+               {
+                  std::string str;
+                  char *p = nullptr;
+
+                  parseString(str, err);
+                  if (!ERROR_FAILED(err))
+                     i = strtoll(str.c_str(), &p, 10);
+               };
+               switch (p->DataType)
+               {
+               case String:
+                  if (recv->OnString)
+                  {
+                     recv->OnString((StringMetadata)p->Enum, parseString, err);
+                     ERROR_CHECK(err);
+                  }
+                  break;
+               case Integer:
+                  if (recv->OnInteger)
+                  {
+                     recv->OnInteger((IntegerMetadata)p->Enum, parseInt, err);
+                     ERROR_CHECK(err);
+                  }
+                  break;
+               case Binary:
+                  if (recv->OnBinaryData)
+                  {
+                     recv->OnBinaryData((BinaryMetadata)p->Enum, parse, err);
+                     ERROR_CHECK(err);
+                  }
+               }
+               break;
+            }
+         }
+      exit:;
+      };
+   ParseBoxes(
+      stream,
+      header.Size,
+      [&stream, &err, onData] (const ParsedBoxHeader &header)
+      {
+         if (!memcmp(header.Type, "data", 4))
+         {
+            if (header.Size < 8)
+               ERROR_SET(err, unknown, "Short atom");
+
+            stream->Seek(8, SEEK_CUR, err);
+            ERROR_CHECK(err);
+
+            auto pos = stream->GetPosition(err);
+            ERROR_CHECK(err);
+
+            onData(pos, header.Size - 8);
+         }
+      exit:;
+      },
+      err
+   );
+}
+
+void
+ParseUdta(
+   Stream *stream,
+   uint64_t length,
+   MetadataReceiver *recv,
+   error *err
+)
+{
+   ParseBoxes(
+      stream, 
+      length,
+      [&stream, recv, &err] (const ParsedBoxHeader &header)
+      {
+         if (!memcmp(header.Type, "meta", 4))
+         {
+            if (header.Size < 4)
+               ERROR_SET(err, unknown, "Short atom");
+
+            stream->Seek(4, SEEK_CUR, err);
+            ERROR_CHECK(err);
+
+            ParseBoxes(
+               stream,
+               header.Size - 4,
+               [&stream, recv, &err] (const ParsedBoxHeader &header)
+               {
+                  if (!memcmp(header.Type, "ilst", 4))
+                  {
+                     ParseBoxes(
+                        stream,
+                        header.Size,
+                        [&stream, recv, &err] (const ParsedBoxHeader &header)
+                        {
+                           ParseMetadataBox(stream, header, recv, err);
+                        },
+                        err
+                     );
+                  }
+               },
+               err
+            );
+         }
+      exit:;
+      },
+      err
+   );
+}
+
+void
 ParseMoov(
    Stream *stream,
    uint64_t length,
@@ -910,6 +1086,8 @@ ParseMoov(
             ParseMvhd(stream, header.Size, moov, err);
          else if (!memcmp(header.Type, "trak", 4))
             ParseTrak(stream, header.Size, moov, err);
+         else if (moov.Metadata && !memcmp(header.Type, "udta", 4))
+            ParseUdta(stream, header.Size, moov.Metadata, err);
       },
       err
    );
@@ -1424,6 +1602,8 @@ struct Mp4Codec : public Codec
 
       pos = file->GetPosition(err);
       ERROR_CHECK(err);
+
+      mp4.Moov.Metadata = params.Metadata;
 
       ParseMp4File(file, mp4, err);
       ERROR_CHECK(err);
