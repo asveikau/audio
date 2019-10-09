@@ -12,6 +12,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <string>
 
 using namespace common;
 using namespace audio;
@@ -60,3 +61,100 @@ void audio::RegisterOggCodec(error *err)
 exit:;
 }
 
+void audio::OnOggComments(
+   MetadataReceiver *recv,
+   char **comments,
+   int *lengths,
+   int nComments,
+   char *vendor,
+   error *err
+)
+{
+   for (int i=0; i<nComments; ++i)
+   {
+      enum TypeEnum
+      {
+         String,
+         Integer,
+      };
+      struct Tag
+      {
+         TypeEnum DataType;
+         int Enum;
+         const char *Key;
+      };
+      static const Tag tags[] =
+      {
+         {String,  Title,         "TITLE"},
+         {String,  Album,         "ALBUM"},
+         {String,  Artist,        "ARTIST"},
+         {String,  Accompaniment, "PERFORMER"},
+         {String,  Publisher,     "ORGANIZATION"},
+         {String,  Genre,         "GENRE"},
+
+         {Integer, Year,          "DATE"},
+         {Integer, Year,          "YEAR"},
+         {Integer, Track,         "TRACKNUMBER"}
+      };
+
+      auto p = comments[i];
+      auto q = strchr(p, '=');
+      if (!q)
+         continue;
+      *q++ = 0;
+
+      for (auto r = p; *r; ++r)
+      {
+         if (*r >= 'a' && *r <= 'z')
+            *r += 'A'-'a';
+      }
+
+      for (auto t = tags; t<tags+ARRAY_SIZE(tags); ++t)
+      {
+         if (!strcmp(t->Key, p))
+         {
+            switch (t->DataType)
+            {
+            case String:
+               if (recv->OnString)
+               {
+                  recv->OnString(
+                     (StringMetadata)t->Enum,
+                     [q] (std::string &str, error *err) -> void
+                     {
+                        try
+                        {
+                           str = q;
+                        }
+                        catch (std::bad_alloc)
+                        {
+                           error_set_nomem(err);
+                        }
+                     },
+                     err
+                  );
+                  ERROR_CHECK(err);
+               }
+               break;
+            case Integer:
+               if (recv->OnInteger)
+               {
+                  recv->OnInteger(
+                     (IntegerMetadata)t->Enum,
+                     [q] (int64_t &i, error *err) -> void
+                     {
+                        char *r = nullptr;
+                        i = strtoll(q, &r, 10);
+                     },
+                     err
+                  );
+                  ERROR_CHECK(err);
+               }
+               break;
+            }
+            break;
+         }
+      }
+   }
+exit:;
+}

@@ -99,6 +99,14 @@ void CreateFlacSource(
 );
 
 void RegisterOggCodec(error *err);
+void OnOggComments(
+   MetadataReceiver *recv,
+   char **comments,
+   int *lengths,
+   int nComments,
+   char *vendor,
+   error *err
+);
 
 void RegisterFlacCodec(error *err);
 

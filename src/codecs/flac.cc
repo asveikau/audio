@@ -36,6 +36,7 @@ class FlacSource : public Source
    uint64_t currentPos;
    bool isOgg;
    char description[128];
+   MetadataReceiver recv;
 public:
 
    FlacSource(Stream *stream_, bool ogg) :
@@ -70,9 +71,22 @@ public:
    }
 
    void
-   Initialize(error *err)
+   Initialize(MetadataReceiver *recv, error *err)
    {
       FLAC__StreamDecoderInitStatus status;
+
+      if (recv)
+      {
+         try
+         {
+            this->recv = *recv;
+            recv = &this->recv;
+         }
+         catch (std::bad_alloc)
+         {
+            ERROR_SET(err, nomem);
+         }
+      }
 
       status =
         (isOgg ? FLAC__stream_decoder_init_ogg_stream
@@ -84,7 +98,7 @@ public:
            LengthCallback,
            EofCallback,
            WriteCallback,
-           nullptr,
+           recv ? MetadataCallback : nullptr,
            ErrorCallback,
            this
         );
@@ -371,6 +385,47 @@ private:
       auto This = (FlacSource*)client_data;
       return This->eof;
    }
+
+   static void
+   MetadataCallback(
+      const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data
+   )
+   {
+      auto recv = &((FlacSource*)client_data)->recv;
+      if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT)
+      {
+         error err;
+
+         auto vc = metadata->data.vorbis_comment;
+         std::vector<char *> strings;
+         std::vector<int> lengths;
+
+         try
+         {
+            for (int i=0; i<vc.num_comments; ++i)
+            {
+               auto &comment = vc.comments[i];
+               strings.push_back((char*)comment.entry);
+               lengths.push_back(comment.length);
+            }
+         }
+         catch (std::bad_alloc)
+         {
+            ERROR_SET(&err, nomem);
+         }
+
+         OnOggComments(
+            recv,
+            strings.data(),
+            lengths.data(),
+            vc.num_comments,
+            (char*)vc.vendor_string.entry,
+            &err
+         );
+         ERROR_CHECK(&err);
+      }
+   exit:;
+   }
 };
 
 struct FlacCodec : public Codec
@@ -411,7 +466,7 @@ void audio::CreateFlacSource(
    {
       ERROR_SET(err, nomem);
    }
-   r->Initialize(err);
+   r->Initialize(params.Metadata, err);
 exit:
    if (ERROR_FAILED(err)) r = nullptr;
    *obj = r.Detach();;

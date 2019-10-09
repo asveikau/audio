@@ -42,11 +42,27 @@ public:
    const char *Describe(void) { return "[vorbisfile]"; }
 
    void
-   Initialize(error *err)
+   Initialize(MetadataReceiver *recv, error *err)
    {
       auto r = ov_open_callbacks(stream.Get(), &file, nullptr, 0, callbacks);
       if (r)
          ERROR_SET(err, vorbis, r);
+      if (recv)
+      {
+         auto vc = ov_comment(&file, -1);
+         if (vc)
+         {
+            OnOggComments(
+               recv,
+               vc->user_comments,
+               vc->comment_lengths,
+               vc->comments,
+               vc->vendor,
+               err
+            );
+            ERROR_CHECK(err);
+         }
+      }
    exit:;
    }
 
@@ -245,7 +261,7 @@ void audio::CreateVorbisSource(
    {
       ERROR_SET(err, nomem);
    }
-   r->Initialize(err);
+   r->Initialize(params.Metadata, err);
 exit:
    if (ERROR_FAILED(err)) r = nullptr;
    *obj = r.Detach();;

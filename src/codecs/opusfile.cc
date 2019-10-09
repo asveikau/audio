@@ -39,13 +39,29 @@ public:
    const char *Describe(void) { return "[opusfile]"; }
 
    void
-   Initialize(error *err)
+   Initialize(MetadataReceiver *recv, error *err)
    {
       int r = 0;
 
       file = op_open_callbacks(stream.Get(), &callbacks, nullptr, 0, &r);
       if (!file)
          ERROR_SET(err, opusfile, r);
+      if (recv)
+      {
+         auto tags = op_tags(file, -1);
+         if (tags)
+         {
+            OnOggComments(
+               recv,
+               tags->user_comments,
+               tags->comment_lengths,
+               tags->comments,
+               tags->vendor,
+               err
+            );
+            ERROR_CHECK(err);
+         }
+      }
    exit:;
    }
 
@@ -233,7 +249,7 @@ void audio::CreateOpusSource(
    {
       ERROR_SET(err, nomem);
    }
-   r->Initialize(err);
+   r->Initialize(params.Metadata, err);
 exit:
    if (ERROR_FAILED(err)) r = nullptr;
    *obj = r.Detach();;
