@@ -27,6 +27,7 @@ audio::ToString(StringMetadata value)
    MAP(Album);
    MAP(Genre);
    MAP(Publisher);
+   MAP(Isrc);
    }
    return "<invalid>";
 }

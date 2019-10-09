@@ -91,6 +91,7 @@ void audio::OnOggComments(
          {String,  Accompaniment, "PERFORMER"},
          {String,  Publisher,     "ORGANIZATION"},
          {String,  Genre,         "GENRE"},
+         {String,  Isrc,          "ISRC"},
 
          {Integer, Year,          "DATE"},
          {Integer, Year,          "YEAR"},

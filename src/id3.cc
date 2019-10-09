@@ -48,6 +48,7 @@ Mappings[] =
    {String,  (int)audio::Album,         "TALB", "TAL"},
    {String,  (int)audio::Genre,         "TCON", "TCO"},
    {String,  (int)audio::Publisher,     "TPUB", "TPB"},
+   {String,  (int)audio::Isrc,          "TSRC", "TRC"},
 
    {Integer, (int)audio::Duration,      "TLEN", "TLE"},
    {Integer, (int)audio::Track,         "TRCK", "TRK"},

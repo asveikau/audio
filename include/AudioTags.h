@@ -28,6 +28,7 @@ enum StringMetadata
    Album,
    Genre,
    Publisher,
+   Isrc,
 };
 
 const char *
