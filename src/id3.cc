@@ -38,25 +38,25 @@ FrameMapping
 const FrameMapping
 Mappings[] =
 {
-   {String,  (int)audio::Title,         "TIT2", "TT2"},
-   {String,  (int)audio::Subtitle,      "TIT3", "TT3"},
-   {String,  (int)audio::ContentGroup,  "TIT1", "TT1"},
-   {String,  (int)audio::Artist,        "TPE1", "TP1"},
-   {String,  (int)audio::Accompaniment, "TPE2", "TP2"},
-   {String,  (int)audio::Composer,      "TCOM", "TCM"},
-   {String,  (int)audio::Conductor,     "TPE3", "TP3"},
-   {String,  (int)audio::Album,         "TALB", "TAL"},
-   {String,  (int)audio::Genre,         "TCON", "TCO"},
-   {String,  (int)audio::Publisher,     "TPUB", "TPB"},
-   {String,  (int)audio::Isrc,          "TSRC", "TRC"},
+   {String,  audio::Title,         "TIT2", "TT2"},
+   {String,  audio::Subtitle,      "TIT3", "TT3"},
+   {String,  audio::ContentGroup,  "TIT1", "TT1"},
+   {String,  audio::Artist,        "TPE1", "TP1"},
+   {String,  audio::Accompaniment, "TPE2", "TP2"},
+   {String,  audio::Composer,      "TCOM", "TCM"},
+   {String,  audio::Conductor,     "TPE3", "TP3"},
+   {String,  audio::Album,         "TALB", "TAL"},
+   {String,  audio::Genre,         "TCON", "TCO"},
+   {String,  audio::Publisher,     "TPUB", "TPB"},
+   {String,  audio::Isrc,          "TSRC", "TRC"},
 
-   {Integer, (int)audio::Duration,      "TLEN", "TLE"},
-   {Integer, (int)audio::Track,         "TRCK", "TRK"},
-   {Integer, (int)audio::Disc,          "TPOS", "TPA"},
-   {Integer, (int)audio::Year,          "TYER", "TYE"},
-   {Integer, (int)audio::OriginalYear,  "TORY", ""   },
+   {Integer, audio::Duration,      "TLEN", "TLE"},
+   {Integer, audio::Track,         "TRCK", "TRK"},
+   {Integer, audio::Disc,          "TPOS", "TPA"},
+   {Integer, audio::Year,          "TYER", "TYE"},
+   {Integer, audio::OriginalYear,  "TORY", ""   },
 
-   {Binary,  (int)audio::Image,         "APIC", "PIC"},
+   {Binary,  audio::Image,         "APIC", "PIC"},
 };
 
 bool
