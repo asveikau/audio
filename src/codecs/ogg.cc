@@ -104,6 +104,12 @@ void audio::OnOggComments(
          continue;
       *q++ = 0;
 
+      auto n = q - p;
+      auto length = lengths[i];
+      if (n > length)
+         continue;
+      length -= n;
+
       for (auto r = p; *r; ++r)
       {
          if (*r >= 'a' && *r <= 'z')
@@ -121,11 +127,11 @@ void audio::OnOggComments(
                {
                   recv->OnString(
                      (StringMetadata)t->Enum,
-                     [q] (std::string &str, error *err) -> void
+                     [q, length] (std::string &str, error *err) -> void
                      {
                         try
                         {
-                           str = q;
+                           str = std::string(q, length);
                         }
                         catch (std::bad_alloc)
                         {
