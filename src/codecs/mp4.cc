@@ -609,8 +609,6 @@ ParseMp4a(
       length,
       [&stream, &err, &track] (const ParsedBoxHeader &header)
       {
-#undef ERROR_JMP
-#define ERROR_JMP() goto innerExit
          if (!memcmp(header.Type, "esds", 4))
          {
             unsigned char ch;
@@ -651,9 +649,7 @@ ParseMp4a(
                break;
             }
          }
-      innerExit:;
-#undef ERROR_JMP
-#define ERROR_JMP() goto exit
+      exit:;
       },
       err
    );
@@ -1125,8 +1121,6 @@ void ParseMp4File(
       ParseBoxes(stream, len, [&file, &err, &stream, &sawMoov, &sawMdat]
       (const ParsedBoxHeader &header)
       {
-#undef ERROR_JMP
-#define ERROR_JMP() goto innerExit
          if (!memcmp(header.Type, "moov", 4))
          {
             ParseMoov(stream, header.Size, file.Moov, err);
@@ -1141,9 +1135,7 @@ void ParseMp4File(
          }
          if (sawMoov && sawMdat)
             throw Mp4ParseFinished();
-      innerExit:;
-#undef ERROR_JMP
-#define ERROR_JMP() goto exit
+      exit:;
       }, err);
       ERROR_CHECK(err);
     }
