@@ -930,6 +930,7 @@ ParseMetadataBox(
             {String,  Composer,      "\xa9""wrt"},
             {String,  ContentGroup,  "\xa9""grp"},
             {String,  Genre,         "\xa9""gen"},
+            {String,  Isrc,          "\xa9""isr"},
 
             {Integer, Year,          "\xa9""day"},
          };
