@@ -12,6 +12,9 @@
 #include <string.h>
 #include <errno.h>
 
+#include <common/time.h>
+#include <common/misc.h>
+
 using namespace common;
 using namespace audio;
 
@@ -57,6 +60,9 @@ audio::SeekBase::GetDuration(error *err)
    uint64_t r = GetPosition();
    uint64_t frame;
    RollbackBase *rollback = nullptr;
+   common::Stream *stream = nullptr;
+   uint64_t startPos = 0;
+   uint64_t startTime = 0;
 
    try
    {
@@ -68,12 +74,43 @@ audio::SeekBase::GetDuration(error *err)
    }
    ERROR_CHECK(err);
 
+   stream = rollback->GetStream();
+   if (stream)
+   {
+      startPos = stream->GetPosition(err);
+      ERROR_CHECK(err);
+      startTime = get_monotonic_time_millis();
+   }
+
    while ((frame = GetNextDuration()))
    {
       SkipFrame(err);
       ERROR_CHECK(err);
 
       r += frame;
+
+      // If we've been doing this for more than 500 ms without an answer,
+      // take the rate of time-per-byte and extrapolate to the entire file.
+      //
+      if (stream)
+      {
+         auto end = get_monotonic_time_millis();
+         if (end - startTime >= 500)
+         {
+            common::StreamInfo info;
+            stream->GetStreamInfo(&info, err);
+            ERROR_CHECK(err);
+            auto bytes = stream->GetPosition(err) - startPos;
+            ERROR_CHECK(err);
+            if (info.FileSizeKnown && bytes)
+            {
+               auto sz = stream->GetSize(err);
+               ERROR_CHECK(err);
+               r = MAX(0, sz - startPos) * ((r + 0.0) / bytes);
+               break;
+            }
+         }
+      }
    }
 
    cachedDuration = r;

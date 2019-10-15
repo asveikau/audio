@@ -46,7 +46,11 @@ protected:
    RollbackImpl(Args&... a) : RollbackIter<Args...>(a...) {};
 };
 
-struct RollbackBase { virtual ~RollbackBase() {} };
+struct RollbackBase
+{
+   virtual common::Stream *GetStream() { return nullptr; }
+   virtual ~RollbackBase() {}
+};
 
 template<typename... Args>
 class Rollback : public RollbackBase, public RollbackImpl<Args...>
@@ -77,6 +81,9 @@ public:
          oldPos = stream->GetPosition(err);
       hasOldPos = !ERROR_FAILED(err);
    }
+
+   common::Stream *
+   GetStream() { return stream.Get(); }
 
    ~RollbackWithCursorPos()
    {
