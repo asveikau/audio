@@ -238,6 +238,7 @@ public:
 
       if (!len || eof)
          goto exit;
+   retry:
 
       if (len < (lastHeader.SamplesPerFrame
                     * lastHeader.Channels
@@ -272,6 +273,16 @@ public:
       ReadHeader(readBuffer, err);
       if (ERROR_FAILED(err)) { eof = true; error_clear(err); }
    exit:
+      switch (status)
+      {
+      case SYNCH_LOST_ERROR:
+      case NO_ENOUGH_MAIN_DATA_ERROR:
+         status = 0;
+         error_clear(err);
+         ReadHeader(readBuffer, err);
+         if (ERROR_FAILED(err)) { eof = true; error_clear(err); }
+         else goto retry;
+      }
       return r;
    }
 
