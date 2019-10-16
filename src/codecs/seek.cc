@@ -6,7 +6,7 @@
  copyright notice and this permission notice appear in all copies.
 */
 
-#include <AudioSource.h>
+#include <AudioCodec.h>
 #include "seekbase.h"
 
 #include <string.h>
@@ -29,13 +29,21 @@ audio::SeekBase::Seek(uint64_t pos, error *err)
    uint64_t currentPos = GetPosition();
    uint64_t nextPos = currentPos + GetNextDuration();
    uint64_t duration = 0;
+   uint64_t seekTableDuration, seekTableOff = 0;
 
    if (pos >= currentPos && pos <= nextPos)
       return;
 
-   if (pos < currentPos)
+   if (seekTable.get() && (seekTable->Lookup(pos, seekTableDuration, seekTableOff, err) || ERROR_FAILED(err)))
    {
-      SeekToStart(err);
+      ERROR_CHECK(err);
+
+      SeekToOffset(seekTableOff, seekTableDuration, err);
+      ERROR_CHECK(err);
+   }
+   else if (pos < currentPos)
+   {
+      SeekToOffset(0, 0, err);
       ERROR_CHECK(err);
    }
 

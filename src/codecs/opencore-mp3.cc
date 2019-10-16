@@ -448,12 +448,12 @@ protected:
       return eof ? 0 : GetDuration(lastHeader);
    }
 
-   void SeekToStart(error *err)
+   void SeekToOffset(uint64_t off, uint64_t time, error *err)
    {
-      currentPos = 0;
+      currentPos = time;
       eof = false;
 
-      stream->Seek(startOfData, SEEK_SET, err);
+      stream->Seek(startOfData + off, SEEK_SET, err);
       ERROR_CHECK(err);
 
       ReadHeader(nullptr, err);
@@ -486,6 +486,34 @@ protected:
          stream.Get(), err,
          currentPos, eof, lastHeader, MetadataChanged
       );
+   }
+};
+
+struct XingSeekTable : public audio::SeekTable
+{
+   uint64_t dataStart;
+   uint64_t duration;
+   uint64_t fileSize;
+   unsigned char table[100];
+
+   XingSeekTable(uint64_t dataStart_, uint64_t duration_, uint64_t fileSize_, const unsigned char buf[100])
+      : dataStart(dataStart_), duration(duration_), fileSize(fileSize_)
+   {
+      memcpy(table, buf, 100);
+   }
+
+   bool
+   Lookup(uint64_t desiredTime, uint64_t &time, uint64_t &fileOffset, error *err)
+   {
+      if (!duration)
+         return false;
+      if (desiredTime > duration)
+         desiredTime = duration;
+
+      auto pct = desiredTime * 100 / duration;
+      time = duration * (pct / 100.0);
+      fileOffset = dataStart + (table[pct] / 256.0) * fileSize;
+      return true;
    }
 };
 
@@ -555,6 +583,48 @@ struct VbrHeader
       default:
          return false;
       }
+   }
+
+   bool
+   CreateSeekTable(uint64_t dataStart, uint64_t duration, common::Stream *file, std::shared_ptr<SeekTable> &ptr, error *err)
+   {
+      uint64_t fileSize = 0;
+
+      switch (Type)
+      {
+      case Xing:
+         if (!(GetXingFlags() & Toc))
+            goto exit;
+         if ((GetXingFlags() & ByteCount))
+            fileSize = Read32(buf + XingOffset(ByteCount));
+         else
+         {
+            common::StreamInfo info;
+            file->GetStreamInfo(&info, err);
+            ERROR_CHECK(err);
+            if (info.FileSizeKnown)
+            {
+               fileSize = file->GetSize(err);
+               ERROR_CHECK(err);
+            }
+         }
+         if (!fileSize)
+            goto exit;
+         try
+         {
+            ptr = std::make_shared<XingSeekTable>(dataStart, duration, fileSize, buf + XingOffset(Toc));
+         }
+         catch (std::bad_alloc)
+         {
+            ERROR_SET(err, nomem);
+         }
+         break;
+      default:;
+      }
+   exit:
+      if (ERROR_FAILED(err))
+         ptr = nullptr;
+      return ptr.get() ? true : false;
    }
 
 private:
@@ -673,6 +743,13 @@ struct Mp3Codec : public Codec
                      params.Duration = (header.SamplesPerFrame * 10000000LL) * frameCount / header.SampleRate;
                   }
 
+                  if (!params.SeekTable.get() && params.Duration)
+                  {
+                     auto dataStart = 0; /* was: offsetToNext */
+                     vbrHeader.CreateSeekTable(dataStart, params.Duration, file, params.SeekTable, err);
+                     ERROR_CHECK(err);
+                  }
+
                   header = next;
                   file->Seek(offsetToNext, SEEK_CUR, err);
                   ERROR_CHECK(err);
@@ -696,6 +773,9 @@ struct Mp3Codec : public Codec
 
       r->Initialize(file, err);
       ERROR_CHECK(err);
+
+      if (params.SeekTable.get())
+         r->SetSeekTable(params.SeekTable);
 
    exit:
       if (onHeap)

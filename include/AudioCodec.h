@@ -14,10 +14,26 @@
 #ifndef audiocodec_h_
 #define audiocodec_h_
 
+#include <memory>
+
 #include "AudioSource.h"
 #include "AudioTags.h"
 
 namespace audio {
+
+struct SeekTable
+{
+   SeekTable() {}
+   SeekTable(const SeekTable &) = delete;
+   virtual ~SeekTable() {}
+
+   virtual
+   bool
+   Lookup(uint64_t desiredTime, uint64_t &time, uint64_t &fileOffset, error *err)
+   {
+      return false;
+   }
+};
 
 // Hints that the caller can provide, eg. from a container or stream
 // implementation.
@@ -26,6 +42,7 @@ struct CodecArgs
 {
    uint64_t Duration;
    MetadataReceiver *Metadata;
+   std::shared_ptr<SeekTable> SeekTable;
 
    CodecArgs() : Duration(0), Metadata(nullptr) {}
 };

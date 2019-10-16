@@ -307,12 +307,12 @@ protected:
       return eof ? 0 : GetDuration(lastHeader);
    }
 
-   void SeekToStart(error *err)
+   void SeekToOffset(uint64_t off, uint64_t time, error *err)
    {
-      currentPos = 0;
+      currentPos = time;
       eof = false;
 
-      stream->Seek(startOfData, SEEK_SET, err);
+      stream->Seek(startOfData + off, SEEK_SET, err);
       ERROR_CHECK(err);
 
       ReadHeader(nullptr, err);

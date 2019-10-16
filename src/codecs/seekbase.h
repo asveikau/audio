@@ -11,16 +11,20 @@
 
 #include "rollback.h"
 #include <common/c++/stream.h>
+#include <memory>
 
 namespace audio {
+
+struct SeekTable;
 
 class SeekBase
 {
    uint64_t cachedDuration;
+   std::shared_ptr<SeekTable> seekTable;
 protected:
    virtual uint64_t GetPosition(void) = 0;
    virtual uint64_t GetNextDuration(void) = 0;
-   virtual void SeekToStart(error *err) = 0;
+   virtual void SeekToOffset(uint64_t off, uint64_t time, error *err) = 0;
    virtual void SkipFrame(error *err) = 0;
    virtual void CapturePosition(RollbackBase **rollback, error *err) = 0;
 public:
@@ -28,6 +32,8 @@ public:
    void Seek(uint64_t pos, error *err);
    uint64_t GetDuration(error *err);
    bool GetDurationKnown(void) const { return cachedDuration != 0; }
+   void SetCachedDuration(uint64_t duration) { cachedDuration = duration; }
+   void SetSeekTable(const std::shared_ptr<SeekTable> &seekTable) { this->seekTable = seekTable; }
 };
 
 bool
