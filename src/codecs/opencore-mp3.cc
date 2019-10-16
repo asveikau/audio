@@ -489,6 +489,117 @@ protected:
    }
 };
 
+struct VbrHeader
+{
+   VbrHeader(const unsigned char *buf_, size_t len_) : Type(Unknown), buf(buf_), len(len_) {}
+
+   enum
+   {
+      Unknown,
+      Xing,
+      Vbri,
+   } Type;
+
+   const unsigned char *buf;
+   size_t len;
+
+   bool
+   Scan()
+   {
+      if (Type != Unknown)
+         return true;
+
+      if (len >= 32+4+26 &&
+          !memcmp(buf + 32, "VBRI", 4))
+      {
+         buf += 32;
+         len -= 32;
+
+         Type = Vbri;
+         return true;
+      }
+
+      while (len > 4)
+      {
+         if (!memcmp(buf, "Xing", 4) || !memcmp(buf, "Info", 4))
+         {
+            if (len < 8 || len < XingOffset(Max))
+               return false;
+
+            Type = Xing;
+            return true;
+         }
+
+         ++buf;
+         --len;
+      }
+
+      return false;
+   }
+
+   bool
+   GetFrameCount(uint32_t &i)
+   {
+      switch (Type)
+      {
+      case Xing:
+         if ((GetXingFlags() & FrameCount))
+         {
+            i = Read32(buf + XingOffset(FrameCount));
+            return true;
+         }
+         return false;
+      case Vbri:
+         i = Read32(buf + 14);
+         return true;
+      default:
+         return false;
+      }
+   }
+
+private:
+
+   static uint32_t
+   Read32(const unsigned char *buf)
+   {
+      return (((uint32_t)buf[0]) << 24) |
+             (((uint32_t)buf[1]) << 16) |
+             (((uint32_t)buf[2]) << 8)  |
+             buf[3];
+   }
+
+   enum XingFlags
+   {
+      FrameCount = (1<<0),
+      ByteCount  = (1<<1),
+      Toc        = (1<<2),
+      Quality    = (1<<3),
+      Max        = Quality + 1,
+   };
+
+   XingFlags
+   GetXingFlags()
+   {
+      return (XingFlags)Read32(buf + 4);
+   }
+
+   int
+   XingOffset(XingFlags feature)
+   {
+      int r = 8;
+      XingFlags flags = GetXingFlags();
+      if (feature > FrameCount && (flags & FrameCount))
+         r += 4;
+      if (feature > ByteCount && (flags & ByteCount))
+         r += 4;
+      if (feature > Toc && (flags & Toc))
+         r += 100;
+      if (feature > Quality && (flags & Quality))
+         r += 4;
+      return r;
+   }
+};
+
 struct Mp3Codec : public Codec
 {
    void TryOpen(
@@ -504,6 +615,7 @@ struct Mp3Codec : public Codec
       Pointer<Mp3Source> r;
       const unsigned char *p = (const unsigned char *)firstBuffer;
       bool headerParsed = false;
+      unsigned char *onHeap = nullptr;
 
       if (firstBufferSize >= 4)
       {
@@ -513,40 +625,60 @@ struct Mp3Codec : public Codec
             //
             ParseHeader(p, header, err);
 
-            // Make sure the next one parses.
-            // Eliminates false positives above.
+            // We want to inspect the first frame for VBR headers.
+            // We also want to make sure the next frame parses, to
+            // eliminate false positives in the scanning process.
             //
             if (!ERROR_FAILED(err))
             {
-               unsigned char nextHeader[4];
+               auto offsetToNext = header.FrameSize + header.Padding;
+               const unsigned char *firstFrame = nullptr;
                ParsedFrameHeader next;
 
-               auto offsetToNext = header.FrameSize + header.Padding;
-               if (offsetToNext + 4 <= firstBufferSize)
+               if (offsetToNext + 4 > firstBufferSize)
                {
-                  memcpy(nextHeader, p + offsetToNext, 4);
+                  onHeap = new(std::nothrow) unsigned char[offsetToNext + 4];
+                  if (!onHeap)
+                     ERROR_SET(err, nomem);
+                  memcpy(onHeap, firstBuffer, firstBufferSize);
+                  uint64_t oldPos = file->GetPosition(err);
+                  ERROR_CHECK(err);
+                  file->Seek(firstBufferSize, SEEK_CUR, err);
+                  ERROR_CHECK(err);
+                  int r = file->Read(onHeap + firstBufferSize, offsetToNext+4-firstBufferSize, err);
+                  ERROR_CHECK(err);
+                  if (r != offsetToNext+4-firstBufferSize)
+                     ERROR_SET(err, unknown, "short read");
+                  file->Seek(oldPos, SEEK_SET, err);
+                  ERROR_CHECK(err);
+                  firstFrame = onHeap;
                }
                else
                {
-                  uint64_t oldPos = file->GetPosition(err);
-                  ERROR_CHECK(err);
+                  firstFrame = (const unsigned char*)firstBuffer;
+               }
+
+               ParseHeader(firstFrame + offsetToNext, next, err);
+               ERROR_CHECK(err);
+
+               headerParsed = true;
+
+               VbrHeader vbrHeader(firstFrame+4, offsetToNext - 4);
+               if (vbrHeader.Scan())
+               {
+                  uint32_t frameCount = 0;
+
+                  if (!params.Duration && vbrHeader.GetFrameCount(frameCount) && header.SampleRate)
+                  {
+                     params.Duration = (header.SamplesPerFrame * 10000000LL) * frameCount / header.SampleRate;
+                  }
+
+                  header = next;
                   file->Seek(offsetToNext, SEEK_CUR, err);
                   ERROR_CHECK(err);
-                  if (4 != file->Read(nextHeader, 4, err))
-                  {
-                     ERROR_CHECK(err);
-                     ERROR_SET(err, unknown, "short read");
-                  }
-                  file->Seek(oldPos, SEEK_SET, err);
-                  ERROR_CHECK(err);
                }
-               ParseHeader(nextHeader, next, err);
+               error_clear(err);
             }
-            if (!ERROR_FAILED(err))
-            {
-               headerParsed = true;
-            }
-            error_clear(err);
          }
       }
 
@@ -566,6 +698,8 @@ struct Mp3Codec : public Codec
       ERROR_CHECK(err);
 
    exit:
+      if (onHeap)
+         delete [] onHeap;
       if (ERROR_FAILED(err)) r = nullptr;
       *obj = r.Detach();
    }
