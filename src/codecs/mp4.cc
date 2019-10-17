@@ -155,6 +155,12 @@ struct StscEntry
    uint32_t DescriptionIndex;
 };
 
+struct SttsEntry
+{
+   uint32_t SampleCount;
+   uint32_t DurationPerSample;
+};
+
 template<class Tkey, class Tvalue, class CMP>
 Tvalue *
 bsearch_nearest_match(
@@ -205,6 +211,7 @@ struct Track
    std::vector<uint32_t> SampleSizes;
    std::vector<uint32_t> ChunkTable;
    std::vector<StscEntry> SamplesInChunk;
+   std::vector<SttsEntry> DurationPerSample;
    bool ChunkTableIs64Bit;
 
    enum
@@ -284,6 +291,35 @@ struct Track
       return DefaultSampleSize ? DefaultSampleSize : SampleSizes[idx]; 
    exit:
       return 0;
+   }
+
+   uint64_t
+   GetSampleDuration(int idx, error *err)
+   {
+      uint64_t r = 0;
+
+      if (idx < 0 || idx >= NumberOfSamples)
+         ERROR_SET(err, unknown, "Invalid sample index");
+
+      if (!TimeScale)
+         ERROR_SET(err, unknown, "Unknown time scale");
+
+      for (auto &stts : DurationPerSample)
+      {
+         if (idx < stts.SampleCount)
+         {
+            r = stts.DurationPerSample * (10000000.0 / TimeScale);
+            idx = 0;
+            break;
+         }
+         idx -= stts.SampleCount;
+      }
+
+      if (idx)
+         ERROR_SET(err, unknown, "Did not find duration in stts");
+
+   exit:
+      return r;
    }
 
    Track() :
@@ -737,6 +773,43 @@ exit:;
 }
 
 void
+ParseStts(
+   Stream *stream,
+   uint64_t length,
+   Track &track,
+   error *err
+)
+{
+   unsigned char readBuffer[8];
+   uint32_t n = 0;
+
+   Read(stream, readBuffer, 8, &length, err);
+   ERROR_CHECK(err);
+
+   // Check version
+   //
+   if (readBuffer[0] != 0)
+      goto exit;
+
+   n = read32(readBuffer + 4);
+
+   while (n--)
+   {
+      SttsEntry entry;
+
+      Read(stream, readBuffer, 8, &length, err);
+      ERROR_CHECK(err);
+
+      entry.SampleCount = read32(readBuffer);
+      entry.DurationPerSample = read32(readBuffer + 4);
+
+      track.DurationPerSample.push_back(entry);
+   }
+
+exit:;
+}
+
+void
 ParseStbl(
    Stream *stream,
    uint64_t length,
@@ -759,6 +832,8 @@ ParseStbl(
             ParseStsd(stream, header.Size, track, err);
          else if (!memcmp(header.Type, "stsc", 4)) 
             ParseStsc(stream, header.Size, track, err);
+         else if (!memcmp(header.Type, "stts", 4))
+            ParseStts(stream, header.Size, track, err);
       },
       err
    );
@@ -1150,6 +1225,49 @@ void ParseMp4File(
 exit:;
 }
 
+struct Mp4SeekTable : public SeekTable
+{
+   Pointer<Stream> refCount;
+   Track &track;
+   int fileHeaderLen;
+   int packetHeaderLen;
+
+   Mp4SeekTable(Stream *refCount_, Track &track_, int fileHeader, int packetHeader)
+      : refCount(refCount_), track(track_), fileHeaderLen(fileHeader), packetHeaderLen(packetHeader)
+   {
+   }
+
+   bool
+   Lookup(uint64_t desiredTime, uint64_t &time, uint64_t &fileOffset, error *err)
+   {
+      int idx = 0;
+      bool r = false;
+
+      time = 0;
+      fileOffset = fileHeaderLen;
+
+      while (desiredTime)
+      {
+         auto ts = track.GetSampleDuration(idx, err);
+         ERROR_CHECK(err);
+
+         if (ts > desiredTime)
+            break;
+
+         fileOffset += packetHeaderLen + track.GetSampleSize(idx, err);
+         ERROR_CHECK(err);
+
+         desiredTime -= ts;
+         time += ts;
+         ++idx;
+      }
+
+      r = true;
+   exit:
+      return r;
+   }
+};
+
 class Mp4DemuxStream : public Stream
 {
    const void *fileHeader;
@@ -1444,6 +1562,29 @@ public:
    }
 
    void
+   CreateSeekTable(std::shared_ptr<SeekTable> &ptr, error *err)
+   {
+      if (!track.DurationPerSample.size())
+         goto exit;
+      try
+      {
+         ptr = std::make_shared<Mp4SeekTable>(this, track, fileHeaderLen, packetHeaderLen);
+      }
+      catch (std::bad_alloc)
+      {
+         ERROR_SET(err, nomem);
+      }
+   exit:;
+   }
+
+   void
+   DropSeekTable()
+   {
+      track.DurationPerSample.resize(0);
+      track.DurationPerSample.shrink_to_fit();
+   }
+
+   void
    GetStreamInfo(common::StreamInfo *info, error *err)
    {
       stream->GetStreamInfo(info, err);
@@ -1599,6 +1740,7 @@ struct Mp4Codec : public Codec
       Pointer<Mp4DemuxStream> demux;
       uint64_t pos = 0, duration = 0;
       const char *codecName = nullptr;
+      bool seekTable = true;
 
       if (MetadataOnly && !params.Metadata)
          goto exit;
@@ -1628,6 +1770,11 @@ struct Mp4Codec : public Codec
                codecName = "AAC";
                *demux.GetAddressOf() =
                   new AacDemuxStream(file, std::move(mp4), i);
+               // Seek with AAC is already fast, since we cook up ADTS headers
+               // in RAM and don't go to disk to seek.  Save some memory by
+               // not creating a seek table object.
+               //
+               seekTable = false;
                break;
 #endif
 #if defined(USE_OPENCORE_MP3)
@@ -1683,6 +1830,15 @@ struct Mp4Codec : public Codec
 
       if (duration)
          params.Duration = duration;
+      if (seekTable && !params.SeekTable.get())
+      {
+         demux->CreateSeekTable(params.SeekTable, err);
+         ERROR_CHECK(err);
+      }
+      else
+      {
+         demux->DropSeekTable();
+      }
 
       OpenCodec(demux.Get(), &params, obj, err);
       ERROR_CHECK(err);
