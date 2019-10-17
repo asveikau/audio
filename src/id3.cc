@@ -1046,25 +1046,32 @@ exit:
 const char *
 audio::id3::Parser::TryParseGenre(const std::string &str)
 {
-   if (str.length() >= 3 &&
-       str[0] == '(' &&
-       str[str.length()-1] == ')')
+   int start = 0, len = str.length();
+
+   if (len >= 3 &&
+       str[start] == '(' &&
+       str[len-1] == ')')
    {
-      int r = 0;
-
-      for (int i=1; i<str.length()-1; ++i)
-      {
-         static const char digits[] = "0123456789";
-         const char *p = strchr(digits, str[i]);
-         if (!p)
-            return nullptr;
-         r *= 10;
-         r += (p - digits);
-      }
-
-      return GetId3V1Genre(r);
+      ++start;
+      --len;
    }
-   return nullptr;
+
+   if (len <= 0)
+      return nullptr;
+
+   int r = 0;
+
+   for (int i=start; i<len; ++i)
+   {
+      static const char digits[] = "0123456789";
+      const char *p = strchr(digits, str[i]);
+      if (!p)
+         return nullptr;
+      r *= 10;
+      r += (p - digits);
+   }
+
+   return GetId3V1Genre(r);
 }
 
 const char *
