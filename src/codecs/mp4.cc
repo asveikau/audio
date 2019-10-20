@@ -341,7 +341,7 @@ struct ParsedMoovBox
 {
    uint32_t TimeScale;
    uint32_t Duration;
-   std::vector<Track> Tracks;
+   std::vector<std::shared_ptr<Track>> Tracks;
    MetadataReceiver *Metadata;
    bool MetadataOnly;
 
@@ -949,7 +949,7 @@ ParseTrak(
    error *err
 )
 {
-   Track track;
+   auto track = std::make_shared<Track>();
 
    ParseBoxes(
       stream,
@@ -957,9 +957,9 @@ ParseTrak(
       [&stream, &err, &track] (const ParsedBoxHeader &header)
       {
          if (!memcmp(header.Type, "tkhd", 4))
-            ParseTkhd(stream, header.Size, track, err);
+            ParseTkhd(stream, header.Size, *track.get(), err);
          else if (!memcmp(header.Type, "mdia", 4))
-            ParseMdia(stream, header.Size, track, err);
+            ParseMdia(stream, header.Size, *track.get(), err);
       },
       err
    );
@@ -1228,13 +1228,19 @@ exit:;
 struct Mp4SeekTable : public SeekTable
 {
    Pointer<Stream> refCount;
-   Track &track;
+   std::shared_ptr<Track> track;
    int fileHeaderLen;
    int packetHeaderLen;
 
-   Mp4SeekTable(Stream *refCount_, Track &track_, int fileHeader, int packetHeader)
+   Mp4SeekTable(Stream *refCount_, const std::shared_ptr<Track> &track_, int fileHeader, int packetHeader)
       : refCount(refCount_), track(track_), fileHeaderLen(fileHeader), packetHeaderLen(packetHeader)
    {
+   }
+
+   ~Mp4SeekTable()
+   {
+      track->DurationPerSample.resize(0);
+      track->DurationPerSample.shrink_to_fit();
    }
 
    bool
@@ -1248,13 +1254,13 @@ struct Mp4SeekTable : public SeekTable
 
       while (desiredTime)
       {
-         auto ts = track.GetSampleDuration(idx, err);
+         auto ts = track->GetSampleDuration(idx, err);
          ERROR_CHECK(err);
 
          if (ts > desiredTime)
             break;
 
-         fileOffset += packetHeaderLen + track.GetSampleSize(idx, err);
+         fileOffset += packetHeaderLen + track->GetSampleSize(idx, err);
          ERROR_CHECK(err);
 
          desiredTime -= ts;
@@ -1280,12 +1286,13 @@ class Mp4DemuxStream : public Stream
    int currentChunk;
    int samplesWithinChunk;
    StscEntry *chunkLookup;
+   std::shared_ptr<Mp4SeekTable> seekTable;
 
 protected:
 
    Pointer<Stream> stream;
-   ParsedMp4File mp4;
-   Track& track;
+   uint64_t MdatStart, MdatLength;
+   std::shared_ptr<Track> track;
 
    virtual void
    GetFileHeader(const void **buf, int *len, error *err)
@@ -1303,7 +1310,7 @@ protected:
 
 public:
 
-   Mp4DemuxStream(Stream *stream_, ParsedMp4File&& mp4_, int trackIdx)
+   Mp4DemuxStream(Stream *stream_, const ParsedMp4File& mp4, int trackIdx)
      : 
        pos(0),
        fileSize(0),
@@ -1312,7 +1319,8 @@ public:
        samplesWithinChunk(0),
        chunkLookup(nullptr),
        stream(stream_),
-       mp4(mp4_),
+       MdatStart(mp4.MdatStart),
+       MdatLength(mp4.MdatLength),
        track(mp4.Moov.Tracks[trackIdx])
    {
    }
@@ -1328,22 +1336,22 @@ public:
       GetPacketHeader(0, &dummyBuf, &packetHeaderLen, err);
       ERROR_CHECK(err);
 
-      if (!track.NumberOfSamples)
+      if (!track->NumberOfSamples)
          ERROR_SET(err, unknown, "No samples");
 
-      if (!track.SamplesInChunk.size())
+      if (!track->SamplesInChunk.size())
          ERROR_SET(err, unknown, "No stsc table");
 
-      chunkLookup = track.SamplesInChunk.data();
+      chunkLookup = track->SamplesInChunk.data();
 
       fileSize = fileHeaderLen;
       try
       {
-         for (int i=0; i<track.NumberOfSamples; ++i)
+         for (int i=0; i<track->NumberOfSamples; ++i)
          {
             PacketStarts.push_back(fileSize);
             fileSize += packetHeaderLen;
-            fileSize += track.GetSampleSize(i, err);
+            fileSize += track->GetSampleSize(i, err);
             ERROR_CHECK(err);
          }
       }
@@ -1422,9 +1430,9 @@ public:
       //
 
       for (pkt = currentPacket,
-              chunkLookup = track.SamplesInChunk.data(),
+              chunkLookup = track->SamplesInChunk.data(),
               currentChunk = 0,
-              chunks = track.GetNumChunks();
+              chunks = track->GetNumChunks();
            currentChunk < chunks;
            ++currentChunk)
       {
@@ -1443,8 +1451,8 @@ public:
    void
    AdvanceChunkLookup(void)
    {
-      auto end = track.SamplesInChunk.data() +
-                 track.SamplesInChunk.size();
+      auto end = track->SamplesInChunk.data() +
+                 track->SamplesInChunk.size();
 
       if (chunkLookup + 1 < end &&
           currentChunk + 1 >= chunkLookup[1].FirstChunk)
@@ -1504,25 +1512,25 @@ public:
          if (!len) goto exit;
       }
 
-      track.GetChunkOffset(currentChunk, &chunkOffset, err);
+      track->GetChunkOffset(currentChunk, &chunkOffset, err);
       ERROR_CHECK(err);
 
       for (int i=0; i<samplesWithinChunk; ++i)
       {
-         int n = track.GetSampleSize(currentPacket - i - 1, err);
+         int n = track->GetSampleSize(currentPacket - i - 1, err);
          ERROR_CHECK(err);
          chunkOffset += n;
       }
 
       {
-         int n = track.GetSampleSize(currentPacket, err);
+         int n = track->GetSampleSize(currentPacket, err);
          int r2 = 0;
          ERROR_CHECK(err);
          offset -= packetHeaderLen;
          chunkOffset += offset;
          n -= offset;
-         if (chunkOffset < mp4.MdatStart ||
-             chunkOffset + n > mp4.MdatStart + mp4.MdatLength)
+         if (chunkOffset < MdatStart ||
+             chunkOffset + n > MdatStart + MdatLength)
          {
             ERROR_SET(err, unknown, "chunk lies outside mdat box");
          }
@@ -1564,24 +1572,19 @@ public:
    void
    CreateSeekTable(std::shared_ptr<SeekTable> &ptr, error *err)
    {
-      if (!track.DurationPerSample.size())
+      if (!track->DurationPerSample.size())
          goto exit;
+      if (seekTable.get())
+         ptr = seekTable;
       try
       {
-         ptr = std::make_shared<Mp4SeekTable>(this, track, fileHeaderLen, packetHeaderLen);
+         ptr = seekTable = std::make_shared<Mp4SeekTable>(this, track, fileHeaderLen, packetHeaderLen);
       }
       catch (std::bad_alloc)
       {
          ERROR_SET(err, nomem);
       }
    exit:;
-   }
-
-   void
-   DropSeekTable()
-   {
-      track.DurationPerSample.resize(0);
-      track.DurationPerSample.shrink_to_fit();
    }
 
    void
@@ -1598,12 +1601,12 @@ class Mp4DemuxStreamWithSimpleHeader : public Mp4DemuxStream
 public:
    Mp4DemuxStreamWithSimpleHeader(
       Stream *stream,
-      ParsedMp4File&& mp4,
+      const ParsedMp4File& mp4,
       int trackIdx,
       const void *header_,
       int headerLen_
    )
-      : Mp4DemuxStream(stream, std::move(mp4), trackIdx),
+      : Mp4DemuxStream(stream, mp4, trackIdx),
         header(header_),
         headerLen(headerLen_)
    {
@@ -1624,10 +1627,10 @@ class AacDemuxStream : public Mp4DemuxStream
 public:
    AacDemuxStream(
       Stream *stream,
-      ParsedMp4File&& mp4,
+      const ParsedMp4File& mp4,
       int trackIdx
    )
-      : Mp4DemuxStream(stream, std::move(mp4), trackIdx)
+      : Mp4DemuxStream(stream, mp4, trackIdx)
    {
       memset(&adts, 0, sizeof(adts));
    }
@@ -1651,9 +1654,9 @@ public:
       adts[5] = 0x1f;
       adts[6] = 0xfc;
 
-      stream->Seek(track.CodecBoxOffset, SEEK_SET, err);
+      stream->Seek(track->CodecBoxOffset, SEEK_SET, err);
       ERROR_CHECK(err);
-      length = track.CodecBoxLength;
+      length = track->CodecBoxLength;
 
       ::Read(stream.Get(), &dummy, 4, &length, err);
       ERROR_CHECK(err);
@@ -1741,6 +1744,7 @@ struct Mp4Codec : public Codec
       uint64_t pos = 0, duration = 0;
       const char *codecName = nullptr;
       bool seekTable = true;
+      std::shared_ptr<SeekTable> seekTableObj;
 
       if (MetadataOnly && !params.Metadata)
          goto exit;
@@ -1761,7 +1765,7 @@ struct Mp4Codec : public Codec
       {
          for (int i=0; !demux.Get() && i<mp4.Moov.Tracks.size(); ++i)
          {
-            auto &track = mp4.Moov.Tracks[i];
+            auto &track = *mp4.Moov.Tracks[i].get();
 
             switch (track.Codec)
             {
@@ -1781,7 +1785,7 @@ struct Mp4Codec : public Codec
             case Track::Mp3:
                codecName = "MP3";
                *demux.GetAddressOf() =
-                  new Mp4DemuxStream(file, std::move(mp4), i);
+                  new Mp4DemuxStream(file, mp4, i);
                break;
 #endif
 #if defined(USE_OPENCORE_AMR)
@@ -1790,7 +1794,7 @@ struct Mp4Codec : public Codec
                *demux.GetAddressOf() =
                   new Mp4DemuxStreamWithSimpleHeader(
                      file,
-                     std::move(mp4),
+                     mp4,
                      i,
                      "#!AMR\n",
                      6
@@ -1801,7 +1805,7 @@ struct Mp4Codec : public Codec
                *demux.GetAddressOf() =
                   new Mp4DemuxStreamWithSimpleHeader(
                      file,
-                     std::move(mp4),
+                     mp4,
                      i,
                      "#!AMR-WB\n",
                      9
@@ -1830,14 +1834,13 @@ struct Mp4Codec : public Codec
 
       if (duration)
          params.Duration = duration;
+
+      demux->CreateSeekTable(seekTableObj, err);
+      ERROR_CHECK(err);
+
       if (seekTable && !params.SeekTable.get())
       {
-         demux->CreateSeekTable(params.SeekTable, err);
-         ERROR_CHECK(err);
-      }
-      else
-      {
-         demux->DropSeekTable();
+         params.SeekTable = seekTableObj;
       }
 
       OpenCodec(demux.Get(), &params, obj, err);
