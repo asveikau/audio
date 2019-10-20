@@ -1286,7 +1286,6 @@ class Mp4DemuxStream : public Stream
    int currentChunk;
    int samplesWithinChunk;
    StscEntry *chunkLookup;
-   std::shared_ptr<Mp4SeekTable> seekTable;
 
 protected:
 
@@ -1574,11 +1573,9 @@ public:
    {
       if (!track->DurationPerSample.size())
          goto exit;
-      if (seekTable.get())
-         ptr = seekTable;
       try
       {
-         ptr = seekTable = std::make_shared<Mp4SeekTable>(this, track, fileHeaderLen, packetHeaderLen);
+         ptr = std::make_shared<Mp4SeekTable>(this, track, fileHeaderLen, packetHeaderLen);
       }
       catch (std::bad_alloc)
       {
