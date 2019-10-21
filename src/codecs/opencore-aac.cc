@@ -78,7 +78,7 @@ void ParseHeader(
 
    parsed.Channels = Channels[channels];
 
-   parsed.SamplesPerFrame = MAX(1024, 1024 * (header[6] & 3));
+   parsed.SamplesPerFrame = 1024 * ((header[6] & 3) + 1);
 
    parsed.FrameSize = 
       (((uint32_t)(header[3] & 3)) << 11) |
