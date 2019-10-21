@@ -80,6 +80,12 @@ void ParseHeader(
 
    parsed.SamplesPerFrame = 1024 * ((header[6] & 3) + 1);
 
+   // XXX, the decoder seems to assume a stereo output buffer
+   // for mono files.
+   //
+   if (parsed.Channels == 1)
+      parsed.SamplesPerFrame *= 2;
+
    parsed.FrameSize = 
       (((uint32_t)(header[3] & 3)) << 11) |
       (((uint32_t)header[4]) << 3) |
