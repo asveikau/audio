@@ -531,7 +531,7 @@ struct VbrHeader
 {
    VbrHeader(const unsigned char *buf_, size_t len_) : Type(Unknown), buf(buf_), len(len_) {}
 
-   enum
+   enum Type_
    {
       Unknown,
       Xing,
@@ -573,6 +573,53 @@ struct VbrHeader
       }
 
       return false;
+   }
+
+   const char *
+   Describe(char *buf, size_t n, error *err)
+   {
+      const char *type = ToString(this->Type);
+      if (!type)
+         return "No header";
+      if (this->Type == Xing)
+      {
+         auto flags = GetXingFlags();
+         char *flagString = buf;
+         for (unsigned int i = 0; i<Max; ++i)
+         {
+            if ((flags &i))
+            {
+               auto str = SingleFlagToString((XingFlags)i);
+               if (!str)
+                  continue;
+               auto len = strlen(str);
+               if (n < len+1)
+                  ERROR_SET(err, unknown, "Buffer too small");
+               if (flagString != buf)
+               {
+                  *buf++ = '|';
+                  --n;
+               }
+               memcpy(buf, str, len);
+               buf += len;
+               n -= len;
+            }
+         }
+         if (!n)
+            ERROR_SET(err, unknown, "Buffer too small");
+         *buf++ = 0;
+         --n;
+
+         snprintf(buf, n, "%s, flags=[%s]", type, flagString);
+         memmove(flagString, buf, strlen(buf) + 1);
+         buf = flagString;
+      }
+      else
+      {
+         snprintf(buf, n, "%s", type);
+      }
+   exit:
+      return ERROR_FAILED(err) ? nullptr : buf;
    }
 
    bool
@@ -678,6 +725,34 @@ private:
          r += 4;
       return r;
    }
+
+#define MAP(X) case X: return #X
+   static const char *
+   ToString(Type_ type)
+   {
+      switch (type)
+      {
+      MAP(Xing);
+      MAP(Vbri);
+      case Unknown: break;
+      }
+      return nullptr;
+   }
+
+   static const char *
+   SingleFlagToString(XingFlags feature)
+   {
+      switch (feature)
+      {
+      MAP(FrameCount);
+      MAP(ByteCount);
+      MAP(Toc);
+      MAP(Quality);
+      case Max: break;
+      }
+      return nullptr;
+   }
+#undef MAP
 };
 
 struct Mp3Codec : public Codec
@@ -747,6 +822,11 @@ struct Mp3Codec : public Codec
                if (vbrHeader.Scan())
                {
                   uint32_t frameCount = 0;
+                  char desc[512];
+
+                  vbrHeader.Describe(desc, sizeof(desc), err);
+                  ERROR_CHECK(err);
+                  log_printf("Found VBR Header: %s", desc);
 
                   if (!params.Duration && vbrHeader.GetFrameCount(frameCount) && header.SampleRate)
                   {
