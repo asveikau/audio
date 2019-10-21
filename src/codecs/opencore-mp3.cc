@@ -275,7 +275,6 @@ public:
    exit:
       switch (status)
       {
-      case SYNCH_LOST_ERROR:
       case NO_ENOUGH_MAIN_DATA_ERROR:
          status = 0;
          error_clear(err);
