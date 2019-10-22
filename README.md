@@ -54,6 +54,7 @@ Proprietary codec support can come from:
 The following is from the third_party subdir and may be linked statically:
 
 * Android OpenCore: MP3, AAC, AMR
+* libalac
 * libflac
 * libopusfile 
 * libvorbisfile

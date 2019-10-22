@@ -21,6 +21,8 @@ export
 depend:
 	env PROJECT=LIBAUDIO $(DEPEND) src/*.cc src/codecs/*.cc src/dev/*.cc \
 	 > depend.mk.tmp
+	env ROOT=LIBAUDIO PROJECT=ALAC $(DEPEND) $(ALAC_SRC) \
+	 >> depend.mk.tmp
 	env ROOT=LIBAUDIO PROJECT=OPENCORE_AUDIO $(DEPEND) $(OPENCORE_MP3_SRC) \
 	 >> depend.mk.tmp
 	env ROOT=LIBAUDIO PROJECT=OPENCORE_AUDIO $(DEPEND) $(OPENCORE_AAC_SRC_A) \

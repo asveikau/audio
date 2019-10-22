@@ -7,6 +7,8 @@
 */
 
 #include <AudioCodec.h>
+#include <MicroCodec.h>
+
 #include <common/misc.h>
 #include <common/logger.h>
 #include <common/c++/new.h>
@@ -221,6 +223,7 @@ struct Track
       Mp3,
       AmrNb,
       AmrWb,
+      Alac,
    } Codec;
 
    uint64_t CodecBoxOffset;
@@ -735,6 +738,10 @@ ParseStsd(
       else if (!memcmp(header.Type, "sawb", 4))
       {
          track.Codec = Track::AmrWb;
+      }
+      else if (!memcmp(header.Type, "alac", 4))
+      {
+         track.Codec = Track::Alac;
       }
 
       stream->Seek(pos + header.Size, SEEK_SET, err);
@@ -1293,6 +1300,8 @@ protected:
    uint64_t MdatStart, MdatLength;
    std::shared_ptr<Track> track;
 
+   int GetCurrentPacket() const { return currentPacket; }
+
    virtual void
    GetFileHeader(const void **buf, int *len, error *err)
    {
@@ -1719,6 +1728,80 @@ protected:
    }
 }; 
 
+class StreamForMicroCodec : public Mp4DemuxStream
+{
+   MicroCodecDemux header;
+
+protected:
+
+   void
+   GetPacketHeader(uint32_t packetLength, const void **buf, int *len, error *err)
+   {
+      header.FrameSize = packetLength - sizeof(header);
+      header.Duration = track->DurationPerSample.size() ? track->GetSampleDuration(GetCurrentPacket(), err) : 0;
+      ERROR_CHECK(err);
+
+      *buf = &header;
+      *len = sizeof(header);
+   exit:;
+   }
+
+public:
+
+   StreamForMicroCodec(
+      Stream *stream,
+      const ParsedMp4File& mp4,
+      int trackIdx
+   )
+      : Mp4DemuxStream(stream, mp4, trackIdx)
+   {}
+};
+
+template <class CreateFn, class ProcessConfig>
+std::function<void(Stream*, CodecArgs *, Source**, error*)>
+CreateFromMicroCodec(const ParsedMp4File &mp4, int i, Stream *mp4Stream_, CreateFn createFn, ProcessConfig cfgFn, error *err)
+{
+   auto &track = mp4.Moov.Tracks[i];
+   Pointer<Stream> mp4Stream = mp4Stream_;
+   return [track, mp4Stream, createFn, cfgFn] (Stream *stream, CodecArgs *params, Source **out, error *err) -> void
+   {
+      Pointer<MicroCodec> uc;
+      std::vector<unsigned char> config;
+      uint64_t oldPos = 0;
+
+      if (track->CodecBoxLength >= (1ULL<<32))
+         ERROR_SET(err, unknown, "Codec config too big");
+
+      oldPos = mp4Stream->GetPosition(err);
+      ERROR_CHECK(err);
+
+      mp4Stream->Seek(track->CodecBoxOffset, SEEK_SET, err);
+      ERROR_CHECK(err);
+
+      try
+      {
+         config.resize(track->CodecBoxLength);
+         config.resize(mp4Stream->Read(config.data(), config.size(), err));
+         ERROR_CHECK(err);
+         cfgFn(config, err);
+         ERROR_CHECK(err);
+      }
+      catch (std::bad_alloc)
+      {
+         ERROR_SET(err, nomem);
+      }
+
+      createFn(uc.GetAddressOf(), err);
+      ERROR_CHECK(err);
+      AudioSourceFromMicroCodec(uc.Get(), stream, params->Duration, config.data(), config.size(), out, err);
+      ERROR_CHECK(err);
+
+      mp4Stream->Seek(oldPos, SEEK_SET, err);
+      ERROR_CHECK(err);
+   exit:;
+   };
+}
+
 struct Mp4Codec : public Codec
 {
    bool MetadataOnly;
@@ -1740,8 +1823,14 @@ struct Mp4Codec : public Codec
       Pointer<Mp4DemuxStream> demux;
       uint64_t pos = 0, duration = 0;
       const char *codecName = nullptr;
-      bool seekTable = true;
+      enum
+      {
+         SuppressSeekTable,
+         CreateSeekTable,
+         PassSeekTableToCodec,
+      } seekTable = PassSeekTableToCodec;
       std::shared_ptr<SeekTable> seekTableObj;
+      std::function<void(Stream*, CodecArgs *, Source**, error*)> create = OpenCodec;
 
       if (MetadataOnly && !params.Metadata)
          goto exit;
@@ -1770,12 +1859,12 @@ struct Mp4Codec : public Codec
             case Track::Aac:
                codecName = "AAC";
                *demux.GetAddressOf() =
-                  new AacDemuxStream(file, std::move(mp4), i);
+                  new AacDemuxStream(file, mp4, i);
                // Seek with AAC is already fast, since we cook up ADTS headers
                // in RAM and don't go to disk to seek.  Save some memory by
-               // not creating a seek table object.
+               // clearing out stts when the seek table object dies.
                //
-               seekTable = false;
+               seekTable = CreateSeekTable;
                break;
 #endif
 #if defined(USE_OPENCORE_MP3)
@@ -1809,6 +1898,36 @@ struct Mp4Codec : public Codec
                   );
                break;
 #endif
+#if defined(USE_ALAC)
+            case Track::Alac:
+               codecName = "Apple Lossless";
+               *demux.GetAddressOf() =
+                  new StreamForMicroCodec(file, mp4, i);
+               create = CreateFromMicroCodec(
+                  mp4,
+                  i,
+                  file,
+                  CreateAlacCodec,
+                  [] (std::vector<unsigned char> &config, error *err) -> void
+                  {
+                     const int skip = 36 + 4;
+                     if (config.size() < skip)
+                        error_set_unknown(err, "Buffer too small");
+                     else
+                     {
+                        memmove(config.data(), config.data()+skip, config.size()-skip);
+                        config.resize(config.size() - skip);
+                     }
+                  },
+                  err
+               );
+               ERROR_CHECK(err);
+               // Need STTS to live on, so don't create the object that will RAII
+               // delete it.
+               //
+               seekTable = SuppressSeekTable;
+               break;
+#endif
             default:
                break;
             }
@@ -1832,15 +1951,18 @@ struct Mp4Codec : public Codec
       if (duration)
          params.Duration = duration;
 
-      demux->CreateSeekTable(seekTableObj, err);
-      ERROR_CHECK(err);
+      if (seekTable != SuppressSeekTable)
+      {
+         demux->CreateSeekTable(seekTableObj, err);
+         ERROR_CHECK(err);
+      }
 
-      if (seekTable && !params.SeekTable.get())
+      if (seekTable == PassSeekTableToCodec && !params.SeekTable.get())
       {
          params.SeekTable = seekTableObj;
       }
 
-      OpenCodec(demux.Get(), &params, obj, err);
+      create(demux.Get(), &params, obj, err);
       ERROR_CHECK(err);
 
       log_printf("mp4: Found %s track.", codecName);

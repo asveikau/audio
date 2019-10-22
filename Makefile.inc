@@ -34,6 +34,10 @@ USE_OPENCORE_AAC:=y
 endif
 USE_OPENCORE_AMR:=y
 
+ifneq ($(PLATFORM),darwin)
+USE_ALAC=:y
+endif
+
 include $(LIBAUDIO_ROOT)third_party/Makefile.inc
 
 LIBAUDIO_CFLAGS += -I$(LIBKISSFFT_ROOT)
@@ -48,6 +52,7 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/codec.cc \
    $(LIBAUDIO_ROOT)src/enum.cc \
    $(LIBAUDIO_ROOT)src/id3.cc \
+   $(LIBAUDIO_ROOT)src/microcodec.cc \
    $(LIBAUDIO_ROOT)src/wakelock.cc \
    $(LIBAUDIO_ROOT)src/dev/wrapper.cc \
    $(LIBAUDIO_ROOT)src/player.cc \
@@ -118,7 +123,7 @@ endif
 LIBAUDIO_SRC+=\
    $(LIBAUDIO_ROOT)src/codecs/mp4.cc
 
-ifneq (, $(USE_OPENCORE_AMR)$(USE_OPENCORE_MP3)$(USE_OPENCORE_AAC))
+ifneq (, $(USE_OPENCORE_AMR)$(USE_OPENCORE_MP3)$(USE_OPENCORE_AAC)$(USE_ALAC))
 LIBAUDIO_CFLAGS+=-DHAVE_MP4_DEMUX
 endif
 
@@ -143,6 +148,12 @@ LIBAUDIO_SRC+=\
    $(LIBAUDIO_ROOT)third_party/amrwb-wrapper.cpp \
    $(LIBAUDIO_ROOT)src/codecs/opencore-amr.cc
 LIBAUDIO_CFLAGS+= -DUSE_OPENCORE_AMR
+endif
+
+ifdef USE_ALAC
+LIBAUDIO_SRC+=\
+   $(LIBAUDIO_ROOT)src/codecs/alac.cc
+LIBAUDIO_CFLAGS+= -DUSE_ALAC
 endif
 
 LIBAUDIO_SUBLIBS+=LIBAUDIO_SRC
