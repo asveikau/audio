@@ -145,7 +145,7 @@ audio::IsSlowSeekContainer(common::Stream *stream, error *err)
    len = stream->Read(buf, sizeof(buf), err);
    ERROR_CHECK(err);
 
-   stream->Seek(SEEK_SET, oldPos, err);
+   stream->Seek(oldPos, SEEK_SET, err);
    ERROR_CHECK(err);
 
    if (len >= 3 && !memcmp(buf, "AMR", 3))
