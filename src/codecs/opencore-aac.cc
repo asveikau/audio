@@ -321,7 +321,7 @@ protected:
       stream->Seek(startOfData + off, SEEK_SET, err);
       ERROR_CHECK(err);
 
-      ReadHeader(nullptr, err);
+      ReadHeader(readBuffer, err);
       ERROR_CHECK(err);
    exit:;
    }
@@ -339,7 +339,7 @@ protected:
 
          currentPos += GetDuration(lastHeader);
 
-         ReadHeader(nullptr, err);
+         ReadHeader(readBuffer, err);
          ERROR_CHECK(err);
       }
    exit:;
@@ -349,7 +349,8 @@ protected:
    {
       *rollback = CreateRollbackWithCursorPos(
          stream.Get(), err,
-         currentPos, eof, lastHeader, MetadataChanged
+         currentPos, eof, lastHeader, MetadataChanged,
+         readBuffer[0], readBuffer[1], readBuffer[2], readBuffer[3]
       );
    }
 };
