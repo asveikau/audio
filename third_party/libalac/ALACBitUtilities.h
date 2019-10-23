@@ -29,6 +29,10 @@
 
 #include <stdint.h>
 
+#if defined(_WINDOWS)
+#define ELEMENT_TYPE ALAC_ELEMENT_TYPE
+#endif
+
 #ifndef MIN
 #define MIN(x, y) 			( (x)<(y) ?(x) :(y) )
 #endif //MIN
