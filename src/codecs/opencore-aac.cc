@@ -169,6 +169,7 @@ public:
       if (!len || eof)
          goto exit;
 
+   retry:
       if (len < (lastHeader.SamplesPerFrame
                     * lastHeader.Channels
                     * GetBitsPerSample(PcmShort)/8))
@@ -203,6 +204,14 @@ public:
      
       if (ERROR_FAILED(err)) { eof = true; error_clear(err); }
    exit:
+      if (status)
+      {
+         error_clear(err);
+         status = 0;
+         SkipFrame(err);
+         if (!ERROR_FAILED(err) && !MetadataChanged)
+            goto retry;
+      }
       return r;
    }
 
