@@ -235,6 +235,7 @@ public:
    {
       int r = 0;
       int32_t status = 0;
+      int retryCount = 5;
 
       if (!len || eof)
          goto exit;
@@ -275,11 +276,15 @@ public:
    exit:
       if (status)
       {
-         error_clear(err);
-         status = 0;
-         SkipFrame(err);
-         if (!ERROR_FAILED(err) && !MetadataChanged)
-            goto retry;
+         if (retryCount--)
+         {
+            error_clear(err);
+            status = 0;
+            SkipFrame(err);
+            if (!ERROR_FAILED(err) && !MetadataChanged)
+               goto retry;
+         }
+         if (ERROR_FAILED(err)) { eof = true; error_clear(err); }
       }
       return r;
    }
