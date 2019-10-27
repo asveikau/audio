@@ -506,6 +506,41 @@ protected:
    }
 };
 
+struct CbrSeekTable : public audio::SeekTable
+{
+   Pointer<Stream> stream;
+   int bitrate;
+   uint64_t duration;
+   uint64_t fileSize;
+
+   CbrSeekTable(Stream *stream_, int bitrate_, uint64_t duration_)
+      : stream(stream_), bitrate(bitrate_), duration(duration_), fileSize(0)
+   {
+   }
+
+   bool
+   Lookup(uint64_t desiredTime, uint64_t &time, uint64_t &fileOffset, error *err)
+   {
+      if (!fileSize)
+      {
+         common::StreamInfo info;
+         stream->GetStreamInfo(&info, err);
+         ERROR_CHECK(err);
+         if (!info.FileSizeKnown)
+            goto exit;
+         fileSize = stream->GetSize(err);
+         ERROR_CHECK(err);
+      }
+      if (!duration)
+         duration = fileSize * 10000LL * 8 / bitrate;
+      time = desiredTime;
+      fileOffset = fileSize * ((MIN(time, duration) + 0.0) / duration);
+      return true;
+   exit:
+      return false;
+   }
+};
+
 struct XingSeekTable : public audio::SeekTable
 {
    uint64_t dataStart;
@@ -850,6 +885,25 @@ struct Mp3Codec : public Codec
                   header = next;
                   file->Seek(offsetToNext, SEEK_CUR, err);
                   ERROR_CHECK(err);
+               }
+               else
+               {
+                  common::StreamInfo info;
+
+                  file->GetStreamInfo(&info, err);
+                  ERROR_CHECK(err);
+
+                  if (!params.SeekTable.get() && info.IsRemote)
+                  {
+                     try
+                     {
+                        params.SeekTable = std::make_shared<CbrSeekTable>(file, header.Bitrate, params.Duration);
+                     }
+                     catch (std::bad_alloc)
+                     {
+                        ERROR_SET(err, nomem);
+                     }
+                  }
                }
                error_clear(err);
             }
