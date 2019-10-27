@@ -159,6 +159,8 @@ void ParseHeader(
    parsed.FrameSize = parsed.SamplesPerFrame/8 * 1000
                          * parsed.Bitrate / parsed.SampleRate;
 
+   if (parsed.FrameSize + parsed.Padding < 4)
+      ERROR_SET(err, unknown, "ADTS frame too small");
 exit:;
 }
 

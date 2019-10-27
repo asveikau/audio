@@ -90,6 +90,9 @@ void ParseHeader(
       (((uint32_t)(header[3] & 3)) << 11) |
       (((uint32_t)header[4]) << 3) |
       (header[5] >> 5);
+
+   if (parsed.FrameSize < HEADER_SIZE)
+      ERROR_SET(err, unknown, "ADTS frame too small");
 exit:;
 }
 
