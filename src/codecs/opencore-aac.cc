@@ -367,7 +367,8 @@ protected:
       *rollback = CreateRollbackWithCursorPos(
          stream.Get(), err,
          currentPos, eof, lastHeader, MetadataChanged,
-         readBuffer[0], readBuffer[1], readBuffer[2], readBuffer[3]
+         readBuffer[0], readBuffer[1], readBuffer[2], readBuffer[3],
+         readBuffer[4], readBuffer[5], readBuffer[6]
       );
    }
 };
