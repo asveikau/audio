@@ -10,6 +10,7 @@
 #include <common/misc.h>
 #include <common/logger.h>
 #include <common/c++/new.h>
+#include <common/size.h>
 
 #include "pvmp3decoder_api.h"
 #include "../../third_party/opencore-audio/mp3/dec/src/pvmp3_framedecoder.h"
@@ -19,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <vector>
 
 using namespace common;
 using namespace audio;
@@ -569,6 +571,65 @@ struct XingSeekTable : public audio::SeekTable
    }
 };
 
+struct VbriSeekTable : public audio::SeekTable
+{
+   std::vector<unsigned char> buf;
+   uint64_t duration;
+   int sizePerEntry;
+   int numEntries;
+   int scale;
+
+   VbriSeekTable(uint64_t duration_, int sizePerEntry_, int numEntries_, int scale_, const void *buf, int len)
+      : duration(duration_), sizePerEntry(sizePerEntry_), numEntries(numEntries_), scale(scale_)
+   {
+      auto p = (const unsigned char*)buf;
+      this->buf.insert(this->buf.end(), p, p+len);
+   }
+
+   bool
+   Lookup(uint64_t desiredTime, uint64_t &time, uint64_t &fileOffset, error *err)
+   {
+      int idx = 0;
+      if (!duration || !numEntries)
+         return false;
+      if (desiredTime > duration)
+         desiredTime = duration;
+
+      auto durationPerEntry = duration / numEntries;
+
+      fileOffset = time = 0;
+
+      while (desiredTime >= durationPerEntry && idx < numEntries)
+      {
+         fileOffset += Read(idx++, err);
+         ERROR_CHECK(err);
+         time += durationPerEntry;
+         desiredTime -= durationPerEntry;
+      }
+   exit:
+      return true;
+   }
+
+   uint64_t
+   Read(int idx, error *err)
+   {
+      uint64_t r = 0;
+      unsigned char *p;
+
+      if (idx < 0 || idx >= numEntries)
+         ERROR_SET(err, unknown, "Out of bounds");
+
+      p = buf.data() + sizePerEntry * idx;
+      for (int i=0; i<sizePerEntry; ++i)
+      {
+         r <<= 8;
+         r |= *p++;
+      }
+   exit:
+      return r * scale;
+   }
+};
+
 struct VbrHeader
 {
    VbrHeader(const unsigned char *buf_, size_t len_) : Type(Unknown), buf(buf_), len(len_) {}
@@ -589,13 +650,28 @@ struct VbrHeader
       if (Type != Unknown)
          return true;
 
-      if (len >= 32+4+26 &&
+      if (len >= 32+sizeof(VbriHeader) &&
           !memcmp(buf + 32, "VBRI", 4))
       {
+         size_t tableLen = 0;
+
          buf += 32;
          len -= 32;
 
          Type = Vbri;
+
+         auto &header = GetVbriHeader();
+         auto tocEntryBytes = Read16(header.TocEntryBytes);
+
+         if (tocEntryBytes > 4)
+            return false;
+
+         if (size_mult(Read16(header.TocEntryCount), tocEntryBytes, &tableLen))
+            return false;
+
+         if (len < tableLen)
+            return false;
+
          return true;
       }
 
@@ -677,7 +753,27 @@ struct VbrHeader
          }
          return false;
       case Vbri:
-         i = Read32(buf + 14);
+         i = Read32(GetVbriHeader().FramesInFile);
+         return true;
+      default:
+         return false;
+      }
+   }
+
+   bool
+   GetByteCount(uint32_t &i)
+   {
+      switch (Type)
+      {
+      case Xing:
+         if ((GetXingFlags() & ByteCount))
+         {
+            i = Read32(buf + XingOffset(ByteCount));
+            return true;
+         }
+         return false;
+      case Vbri:
+         i = Read32(GetVbriHeader().BytesInFile);
          return true;
       default:
          return false;
@@ -689,13 +785,11 @@ struct VbrHeader
    {
       uint64_t fileSize = 0;
 
-      switch (Type)
+      auto tryGetFileSize = [&] () -> void
       {
-      case Xing:
-         if (!(GetXingFlags() & Toc))
-            goto exit;
-         if ((GetXingFlags() & ByteCount))
-            fileSize = Read32(buf + XingOffset(ByteCount));
+         uint32_t u32 = 0;
+         if (GetByteCount(u32))
+            fileSize = u32;
          else
          {
             common::StreamInfo info;
@@ -707,6 +801,16 @@ struct VbrHeader
                ERROR_CHECK(err);
             }
          }
+      exit:;
+      };
+
+      switch (Type)
+      {
+      case Xing:
+         if (!(GetXingFlags() & Toc))
+            goto exit;
+         tryGetFileSize();
+         ERROR_CHECK(err);
          if (!fileSize)
             goto exit;
          try
@@ -717,6 +821,27 @@ struct VbrHeader
          {
             ERROR_SET(err, nomem);
          }
+         break;
+      case Vbri:
+         if (!duration || !Read16(GetVbriHeader().TocEntryCount))
+            goto exit;
+         try
+         {
+            auto &header = GetVbriHeader();
+            ptr = std::make_shared<VbriSeekTable>(
+               duration,
+               Read16(header.TocEntryBytes),
+               Read16(header.TocEntryCount),
+               Read16(header.TocScaleFactor),
+               buf + sizeof(header),
+               len - sizeof(header)
+            );
+         }
+         catch (std::bad_alloc)
+         {
+            ERROR_SET(err, nomem);
+         }
+
          break;
       default:;
       }
@@ -736,6 +861,29 @@ private:
              (((uint32_t)buf[2]) << 8)  |
              buf[3];
    }
+
+   static uint32_t
+   Read32(uint32_t i)
+   {
+      return Read32((const unsigned char*)&i);
+   }
+
+   static uint16_t
+   Read16(const unsigned char *buf)
+   {
+      return buf[1] | (((uint16_t)buf[0]) << 8);
+   }
+
+   static uint16_t
+   Read16(uint16_t i)
+   {
+      return Read16((const unsigned char*)&i);
+   }
+
+   //
+   // Types and methods for XING/INFO header.
+   // This format seems to have "won" and is super popular.
+   //
 
    enum XingFlags
    {
@@ -795,6 +943,35 @@ private:
       return nullptr;
    }
 #undef MAP
+
+   //
+   // Types and methods for VBRI header.
+   // This format was used by the Fraunhofer encoder (eg. fastenc)
+   //
+
+   #pragma pack(1)
+
+   struct VbriHeader
+   {
+      char     Type[4];     // "VBRI"
+      uint16_t Version;
+      uint16_t Delay;       // NB: this is actually a float
+      uint16_t Quality;
+      uint32_t BytesInFile;
+      uint32_t FramesInFile;
+      uint16_t TocEntryCount;
+      uint16_t TocScaleFactor;
+      uint16_t TocEntryBytes;
+      uint16_t TocEntrySamples;
+   };
+
+   #pragma pack()
+
+   VbriHeader &
+   GetVbriHeader()
+   {
+      return *(VbriHeader*)buf;
+   }
 };
 
 struct Mp3Codec : public Codec
