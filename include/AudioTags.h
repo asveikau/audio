@@ -34,6 +34,9 @@ enum StringMetadata
 const char *
 ToString(StringMetadata);
 
+bool
+TryParse(const char *, StringMetadata &);
+
 enum IntegerMetadata
 {
    Duration,
@@ -48,6 +51,9 @@ enum IntegerMetadata
 const char *
 ToString(IntegerMetadata);
 
+bool
+TryParse(const char *, IntegerMetadata &);
+
 enum BinaryMetadata
 {
    Image,
@@ -55,6 +61,9 @@ enum BinaryMetadata
 
 const char *
 ToString(BinaryMetadata);
+
+bool
+TryParse(const char *, BinaryMetadata &);
 
 struct MetadataReceiver
 {
