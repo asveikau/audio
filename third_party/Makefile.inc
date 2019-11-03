@@ -166,11 +166,11 @@ OPENCORE_AMR_SRC_A += \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/grid_tbl.cpp \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/int_lpc.cpp \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/inv_sqrt_tbl.cpp \
-   $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/inv_sqrt.cpp \
+   $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/inv_sqrt.cpp
+OPENCORE_AMR_SRC_B += \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/l_abs.cpp \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/l_deposit_h.cpp \
-   $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/l_deposit_l.cpp
-OPENCORE_AMR_SRC_B += \
+   $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/l_deposit_l.cpp \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/l_shr_r.cpp \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/log2_norm.cpp \
    $(OPENCORE_AUDIO_ROOT)gsm_amr/amr_nb/common/src/log2_tbl.cpp \
