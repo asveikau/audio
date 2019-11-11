@@ -492,6 +492,15 @@ private:
 
    const char *LookupCodecGuid(const GUID &guid)
    {
+      static const GUID
+      MFAudioFormat_ALAC_Observed =
+      {
+         0x616c6163U,
+         0x767a,
+         0x494d,
+         {0xb4,0x78,0xf2,0x9d,0x25,0xdc,0x90,0x37}
+      };
+
       static const struct
       {
          GUID Guid;
@@ -503,7 +512,8 @@ private:
 #endif
          {MFAudioFormat_AAC,                 "AAC"},
          {MFAudioFormat_ADTS,                "AAC (ADTS)"},
-         {MFAudioFormat_ALAC,                "ALAC"},
+         {MFAudioFormat_ALAC,                "Apple Lossless"},
+         {MFAudioFormat_ALAC_Observed,       "Apple Lossless"},
          {MFAudioFormat_AMR_NB,              "AMR"},
          {MFAudioFormat_AMR_WB,              "AMR-WB"},
          {MFAudioFormat_Dolby_AC3,           "AC3"},
