@@ -198,9 +198,6 @@ public:
       );
       if (FAILED(hr)) ERROR_SET(err, win32, hr);
 
-      ReadSample(err);
-      ERROR_CHECK(err);
-
    exit:;
    }
 
@@ -241,6 +238,19 @@ public:
       ComPtr<IMFMediaType> mediaType;
       PWAVEFORMATEX waveFormat = nullptr;
       UINT32 waveFormatLength = 0;
+
+      // Workaround for old bug, possibly nonexistent these days.
+      // Querying audio format before any decode has happened would sometimes
+      // yield incorrect info.  (eg. mono file reported as stereo)  Force a
+      // decode to happen.
+      //
+      if (!eof && !currentSample.Get())
+      {
+         ReadSample(err);
+         ERROR_CHECK(err);
+
+         MetadataChanged = false;
+      }
 
       hr = reader->GetCurrentMediaType(
          MF_SOURCE_READER_FIRST_AUDIO_STREAM,
