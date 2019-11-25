@@ -46,7 +46,7 @@ namespace {
 void
 CreateDefaultDeviceMonitor(
    IMMDeviceEnumerator *devEnum,
-   std::function<void(EDataFlow, ERole, PCWSTR, error *)> callback,
+   const std::function<void(EDataFlow, ERole, PCWSTR, error *)> &callback,
    IUnknown **out,
    error *err
 );
@@ -426,7 +426,7 @@ struct DeviceMonitorRaii : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IU
 void
 CreateDefaultDeviceMonitor(
    IMMDeviceEnumerator *devEnum,
-   std::function<void(EDataFlow, ERole, PCWSTR, error *)> callback,
+   const std::function<void(EDataFlow, ERole, PCWSTR, error *)> &callback,
    IUnknown **out,
    error *err
 )

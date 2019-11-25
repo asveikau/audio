@@ -623,7 +623,7 @@ audio::ThreadedPlayer::~ThreadedPlayer()
 
 void
 audio::ThreadedPlayer::Schedule(
-   std::function<void(error*)> fn, error *err, bool sync
+   const std::function<void(error*)> &fn, error *err, bool sync
 )
 {
    scheduler.Schedule(

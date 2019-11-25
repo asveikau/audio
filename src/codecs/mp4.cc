@@ -361,7 +361,7 @@ void
 ParseBoxes(
    Stream *stream,
    uint64_t length,
-   std::function<void(const ParsedBoxHeader &)> fn,
+   const std::function<void(const ParsedBoxHeader &)> &fn,
    error *err
 )
 {

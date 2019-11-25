@@ -126,7 +126,7 @@ class ThreadedPlayer : public RefCountable
    common::Pointer<Player> player;
    bool playing;
 
-   void Schedule(std::function<void(error*)> fn, error *err, bool sync=true);
+   void Schedule(const std::function<void(error*)> &fn, error *err, bool sync=true);
    void ScheduleStep(error *err);
 public:
 
