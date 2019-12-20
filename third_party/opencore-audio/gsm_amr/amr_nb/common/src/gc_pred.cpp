@@ -539,9 +539,9 @@ void gc_pred(
     Flag   *pOverflow
 )
 {
-    register Word16 i;
-    register Word32 L_temp1, L_temp2;
-    register Word32 L_tmp;
+    Word16 i;
+    Word32 L_temp1, L_temp2;
+    Word32 L_tmp;
     Word32 ener_code;
     Word32 ener;
     Word16 exp, frac;
@@ -1055,7 +1055,7 @@ void gc_pred_average_limited(
 )
 {
     Word16 av_pred_en;
-    register Word16 i;
+    Word16 i;
 
     /* do average in MR122 mode (log2() domain) */
     av_pred_en = 0;

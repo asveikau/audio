@@ -484,9 +484,9 @@ __inline Int16 sat(Int32 y)
 
 __inline Int16 sat(Int32 y)
 {
-    register Int32 x;
-    register Int32 ra = (Int32)y;
-    register Int32 z = ROUNDING_SCALED;
+    Int32 x;
+    Int32 ra = (Int32)y;
+    Int32 z = ROUNDING_SCALED;
 
 
     asm volatile(

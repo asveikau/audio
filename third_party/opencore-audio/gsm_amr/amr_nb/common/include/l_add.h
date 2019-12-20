@@ -112,7 +112,7 @@ extern "C"
     ----------------------------------------------------------------------------*/
 #if defined(PV_ARM) /* Instructions for ARM Assembly on ADS*/
 
-    __inline Word32 L_add(register Word32 L_var1, register Word32 L_var2, Flag *pOverflow)
+    __inline Word32 L_add(Word32 L_var1, Word32 L_var2, Flag *pOverflow)
     {
         Word32 result;
 
@@ -126,10 +126,10 @@ extern "C"
 
 #elif defined(PV_ARM_GCC) /* Instructions for ARM-linux cross-compiler*/
 
-    __inline Word32 L_add(register Word32 L_var1, register Word32 L_var2, Flag *pOverflow)
+    __inline Word32 L_add(Word32 L_var1, Word32 L_var2, Flag *pOverflow)
     {
-        register Word32 ra = L_var1;
-        register Word32 rb = L_var2;
+        Word32 ra = L_var1;
+        Word32 rb = L_var2;
         Word32 result;
 
         OSCL_UNUSED_ARG(pOverflow);
@@ -145,7 +145,7 @@ extern "C"
 #else /* C EQUIVALENT */
 
 
-    static inline Word32 L_add(register Word32 L_var1, register Word32 L_var2, Flag *pOverflow)
+    static inline Word32 L_add(Word32 L_var1, Word32 L_var2, Flag *pOverflow)
     {
         Word32 L_sum;
 

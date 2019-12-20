@@ -408,9 +408,9 @@ __inline Int32 abs2(Int32 x)
  */
 __inline Int32 abs2(Int32 x)
 {
-    register Int32 z;
-    register Int32 y;
-    register Int32 ra = x;
+    Int32 z;
+    Int32 y;
+    Int32 ra = x;
     asm volatile(
         "sub  %0, %2, %2, lsr #31\n\t"
         "eor  %1, %0, %0, asr #31"

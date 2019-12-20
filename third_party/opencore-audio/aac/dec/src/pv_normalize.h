@@ -76,8 +76,8 @@ __inline Int pv_normalize(Int32 x)
 
 __inline Int pv_normalize(Int32 x)
 {
-    register Int32 y;
-    register Int32 ra = x;
+    Int32 y;
+    Int32 ra = x;
 
 
     asm volatile(

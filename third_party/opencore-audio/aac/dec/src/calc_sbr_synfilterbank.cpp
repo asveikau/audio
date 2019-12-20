@@ -154,8 +154,8 @@ __inline Int16 sat(Int32 y)
 
 __inline Int16 sat(Int32 y)
 {
-    register Int32 x;
-    register Int32 ra = y;
+    Int32 x;
+    Int32 ra = y;
 
 
     asm volatile(

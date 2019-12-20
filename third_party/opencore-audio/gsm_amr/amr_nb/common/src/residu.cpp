@@ -206,7 +206,7 @@ void Residu(
 {
 
 
-    register Word16 i, j;
+    Word16 i, j;
     Word32 s1;
     Word32 s2;
     Word32 s3;

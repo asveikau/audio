@@ -58,7 +58,7 @@ extern "C"
     static inline  Int32 shft_lft_1(Int32 L_var1)
     {
         Int32 x;
-        register Int32 ra = L_var1;
+        Int32 ra = L_var1;
         Int32 z = INT32_MAX;
 
         asm volatile(
@@ -77,8 +77,8 @@ extern "C"
 
         Int32 tmp1;
         Int32 tmp2;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
 
         asm volatile(
             "mov %0, %3, asl #16\n\t"
@@ -103,8 +103,8 @@ extern "C"
 
         Int32 tmp1;
         Int32 tmp2;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
 
         asm volatile(
             "mov %0, %3, asl #16\n\t"
@@ -126,8 +126,8 @@ extern "C"
 
         Int32 tmp1;
         Int32 tmp2;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
 
         asm volatile(
             "mov %0, %3, asr #16\n\t"
@@ -149,8 +149,8 @@ extern "C"
 
         Int32 tmp1;
         Int32 tmp2;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
 
         asm volatile(
             "mov %0, %3, asr #16\n\t"
@@ -171,9 +171,9 @@ extern "C"
 {
 
         Int32 tmp;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
+        Int32 rc = (Int32)L_add;
 
         asm volatile(
             "mla %0, %1, %2, %3"
@@ -192,9 +192,9 @@ extern "C"
 
         Int32 tmp1;
         Int32 tmp2;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
+        Int32 rc = (Int32)L_add;
 
         asm volatile(
             "mov %0, %3, asl #16\n\t"
@@ -216,9 +216,9 @@ extern "C"
 
         Int32 tmp1;
         Int32 tmp2;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
+        Int32 rc = (Int32)L_add;
 
         asm volatile(
             "mov %0, %3, asr #16\n\t"
@@ -241,9 +241,9 @@ extern "C"
         Int32 rTmp0;
         Int32 iTmp0;
         Int32 result64_hi;
-        register Int32 ra = (Int32)x;
-        register Int32 rb = (Int32)y;
-        register Int32 rc = (Int32)exp_jw;
+        Int32 ra = (Int32)x;
+        Int32 rb = (Int32)y;
+        Int32 rc = (Int32)exp_jw;
 
 
 
@@ -281,8 +281,8 @@ extern "C"
         Int32 rTmp0;
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
 
         asm volatile(
             "mov %0, %4, asl #16\n\t"
@@ -307,8 +307,8 @@ extern "C"
         Int32 rTmp0;
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
 
         asm volatile(
             "mov %0, %4, asr #16\n\t"
@@ -331,9 +331,9 @@ extern "C"
         Int32 rTmp0;
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)L_var1;
-        register Int32 rb = (Int32)L_var2;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)L_var1;
+        Int32 rb = (Int32)L_var2;
+        Int32 rc = (Int32)L_add;
 
         asm volatile(
             "mov %0, %4, asl #16\n\t"
@@ -361,9 +361,9 @@ extern "C"
     {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
+        Int32 rc = (Int32)L_add;
 
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "add %4, %4, %0, asl #2\n\t"
@@ -383,9 +383,9 @@ extern "C"
 
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
+        Int32 rc = (Int32)L_add;
 
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "add %0, %0, %4"
@@ -404,9 +404,9 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
-        register Int32 rc = (Int32)L_sub;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
+        Int32 rc = (Int32)L_sub;
 
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "sub %0, %4, %0"
@@ -425,8 +425,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile(
             "smull %1, %0, %2, %3"
     : "=&r*i"(result64_hi),
@@ -442,8 +442,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #2\n\t"
                      "orr   %0, %0, %1, lsr #30"
@@ -460,9 +460,9 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
-        register Int32 rc = (Int32)L_add;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
+        Int32 rc = (Int32)L_add;
 
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "add   %4, %4, %0, lsl #3\n\t"
@@ -481,9 +481,9 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
-        register Int32 rc = (Int32)L_sub;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
+        Int32 rc = (Int32)L_sub;
 
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "sub   %4, %4, %0, lsl #3\n\t"
@@ -501,8 +501,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #3\n\t"
                      "orr   %0, %0, %1, lsr #29"
@@ -519,8 +519,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #4\n\t"
                      "orr   %0, %0, %1, lsr #28"
@@ -535,8 +535,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #5\n\t"
                      "orr   %0, %0, %1, lsr #27"
@@ -553,8 +553,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #6\n\t"
                      "orr   %0, %0, %1, lsr #26"
@@ -571,8 +571,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #12\n\t"
                      "orr   %0, %0, %1, lsr #20"
@@ -589,8 +589,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2, %3\n\t"
                      "mov %0, %0, lsl #17\n\t"
                      "orr   %0, %0, %1, lsr #15"
@@ -608,8 +608,8 @@ extern "C"
 {
         Int32 result64_hi;
         Int32 result64_lo;
-        register Int32 ra = (Int32)a;
-        register Int32 rb = (Int32)b;
+        Int32 ra = (Int32)a;
+        Int32 rb = (Int32)b;
         asm volatile("smull %1, %0, %2,  %3\n\t"
                      "mov   %0, %0, lsl #18\n\t"
                      "orr   %0, %0, %1, lsr #14"

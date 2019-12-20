@@ -119,10 +119,10 @@ extern "C"
     	L_sum = 32-bit sum of L_var1 and L_var2 (Word32)
     */
 
-    __inline Word32 L_add(register Word32 L_var1, register Word32 L_var2, Flag *pOverflow)
+    __inline Word32 L_add(Word32 L_var1, Word32 L_var2, Flag *pOverflow)
     {
-        register Word32 ra = L_var1;
-        register Word32 rb = L_var2;
+        Word32 ra = L_var1;
+        Word32 rb = L_var2;
         Word32 result;
 
         OSCL_UNUSED_ARG(pOverflow);
@@ -158,8 +158,8 @@ extern "C"
     */
     __inline Word32 L_sub(Word32 L_var1, Word32 L_var2, Flag *pOverflow)
 {
-        register Word32 ra = L_var1;
-        register Word32 rb = L_var2;
+        Word32 ra = L_var1;
+        Word32 rb = L_var2;
         Word32 result;
 
         OSCL_UNUSED_ARG(pOverflow);
@@ -197,9 +197,9 @@ extern "C"
     */
     static inline Word32 L_mac(Word32 L_var3, Word16 var1, Word16 var2, Flag *pOverflow)
 {
-        register Word32 ra = L_var3;
-        register Word32 rb = var1;
-        register Word32 rc = var2;
+        Word32 ra = L_var3;
+        Word32 rb = var1;
+        Word32 rc = var2;
         Word32 result;
 
         OSCL_UNUSED_ARG(pOverflow);
@@ -241,8 +241,8 @@ extern "C"
 
     __inline Word32 L_mult(Word16 var1, Word16 var2, Flag *pOverflow)
 {
-        register Word32 ra = var1;
-        register Word32 rb = var2;
+        Word32 ra = var1;
+        Word32 rb = var2;
         Word32 result;
         Word32 product;
 
@@ -286,9 +286,9 @@ extern "C"
     */
     __inline Word32 L_msu(Word32 L_var3, Word16 var1, Word16 var2, Flag *pOverflow)
 {
-        register Word32 ra = L_var3;
-        register Word32 rb = var1;
-        register Word32 rc = var2;
+        Word32 ra = L_var3;
+        Word32 rb = var1;
+        Word32 rc = var2;
         Word32 product;
         Word32 result;
 
@@ -333,13 +333,13 @@ extern "C"
                                 Word16 L_var2_lo,
                                 Flag   *pOverflow)
 {
-        register Word32 product32;
-        register Word32 L_sum;
-        register Word32 L_product, result;
-        register Word32 ra = L_var1_hi;
-        register Word32 rb = L_var1_lo;
-        register Word32 rc = L_var2_hi;
-        register Word32 rd = L_var2_lo;
+        Word32 product32;
+        Word32 L_sum;
+        Word32 L_product, result;
+        Word32 ra = L_var1_hi;
+        Word32 rb = L_var1_lo;
+        Word32 rc = L_var2_hi;
+        Word32 rd = L_var2_lo;
 
 
 
@@ -417,9 +417,9 @@ extern "C"
                                    Flag *pOverflow)
 {
 
-        register Word32 ra = L_var1_hi;
-        register Word32 rb = L_var1_lo;
-        register Word32 rc = var2;
+        Word32 ra = L_var1_hi;
+        Word32 rb = L_var1_lo;
+        Word32 rc = var2;
         Word32 result, L_product;
 
         OSCL_UNUSED_ARG(pOverflow);
@@ -477,8 +477,8 @@ extern "C"
     */
     __inline Word16 mult(Word16 var1, Word16 var2, Flag *pOverflow)
 {
-        register Word32 ra = var1;
-        register Word32 rb = var2;
+        Word32 ra = var1;
+        Word32 rb = var2;
         Word32 product;
         Word32 temp = 0x7FFF;
 
@@ -506,9 +506,9 @@ extern "C"
 
     __inline Word32 amrnb_fxp_mac_16_by_16bb(Word32 L_var1, Word32 L_var2, Word32 L_var3)
 {
-        register Word32 ra = L_var1;
-        register Word32 rb = L_var2;
-        register Word32 rc = L_var3;
+        Word32 ra = L_var1;
+        Word32 rb = L_var2;
+        Word32 rc = L_var3;
         Word32 result;
 
         asm volatile("smlabb %0, %1, %2, %3"
@@ -520,9 +520,9 @@ extern "C"
 
     __inline Word32 amrnb_fxp_msu_16_by_16bb(Word32 L_var1, Word32 L_var2, Word32 L_var3)
 {
-        register Word32 ra = L_var1;
-        register Word32 rb = L_var2;
-        register Word32 rc = L_var3;
+        Word32 ra = L_var1;
+        Word32 rb = L_var2;
+        Word32 rc = L_var3;
         Word32 result;
 
         asm volatile("rsb %0, %1, #0"
