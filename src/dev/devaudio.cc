@@ -29,6 +29,8 @@
 using namespace common;
 using namespace audio;
 
+#include "devnodeenum.h"
+
 namespace {
 
 class DevAudioDev : public Device
@@ -124,86 +126,52 @@ public:
    }
 };
 
-class DevAudioEnumerator : public DeviceEnumerator
+class DevAudioEnumerator : public DevNodeEnumerator
 {
-   std::vector<Pointer<Device>> devs;
-   Pointer<Device> defaultDev;
-
-   void TryOpen(const char *filename, Device **out)
+protected:
+   void
+   Open(const char *filename, int fd, Device **out, error *err)
    {
-      int fd = open(filename, O_WRONLY);
-      if (fd >= 0)
+      try
       {
-         try
-         {
-            *out = new DevAudioDev(fd);
-            fd = -1;
-         }
-         catch (std::bad_alloc)
-         {
-         }
+         *out = new DevAudioDev(fd);
       }
-      if (fd >= 0)
+      catch (std::bad_alloc)
       {
-         close(fd);
+         ERROR_SET(err, nomem);
       }
-   }
-
-   void OnDevice(const Pointer<Device> &dev)
-   {
-      devs.push_back(dev);
-      if (!defaultDev.Get())
-         defaultDev = dev;
-   }
-
-public:
-
-   void Initialize(error *err)
-   {
-      Pointer<Device> dev;
-      const char *env;
-
-      env = getenv("AUDIODEV");
-      if (env)
-         TryOpen(env, dev.ReleaseAndGetAddressOf());
-      if (dev.Get())
-         OnDevice(dev);
-
-      TryOpen("/dev/audio", dev.ReleaseAndGetAddressOf());
-      if (dev.Get())
-         OnDevice(dev);
-
-#if !defined(__sun__)
-      TryOpen("/dev/sound", dev.ReleaseAndGetAddressOf());
-      if (dev.Get())
-         OnDevice(dev);
-#endif
-   }
-
-   int GetDeviceCount(error *err)
-   {
-      return devs.size();
-   }
-
-   void GetDevice(int idx, Device **output, error *err)
-   {
-      Pointer<Device> dev;
-
-      if (idx < 0 || idx >= devs.size())
-         ERROR_SET(err, errno, EINVAL);
-
-      dev = devs[idx]; 
-
    exit:;
-      *output = dev.Detach();
    }
 
-   void GetDefaultDevice(Device **output, error *err)
+   const char * const *
+   GetPossibleDeviceNodeNames(DevNodeEnumerator::Mode mode)
    {
-      Pointer<Device> r = defaultDev;
-      if (!r.Get() && devs.size())
-         r = devs[0];
-      *output = r.Detach();
+      static const char
+      * const
+      pcm[] =
+      {
+         "audio",
+#if !defined(__sun__)
+         "sound",
+#endif
+         nullptr,
+      },
+      * const
+      mixer[] =
+      {
+         "audioctl",
+         nullptr
+      };
+      switch (mode)
+      {
+      case Pcm:
+         return pcm;
+      case Mixer:
+         return mixer;
+      case ConsiderEnvironment:
+         break;
+      }
+      return nullptr;
    }
 };
 
@@ -215,9 +183,6 @@ audio::GetDevAudioDeviceEnumerator(DeviceEnumerator **out, error *err)
    Pointer<DevAudioEnumerator> r;
 
    New(r.GetAddressOf(), err);
-   ERROR_CHECK(err);
-
-   r->Initialize(err);
    ERROR_CHECK(err);
 
 exit:

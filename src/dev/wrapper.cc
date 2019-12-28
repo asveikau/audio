@@ -52,19 +52,40 @@ Entries[] =
 
 class DeviceEnumerationDispatch : public DeviceEnumerator
 {
-   std::vector<Pointer<Device>> devices;
+   std::vector<Pointer<DeviceEnumerator>> enumerators;
 
 public:
-   void GetDefaultDevice(Device **output, error *err)
+   void
+   Initialize(error *err)
    {
       Pointer<DeviceEnumerator> e;
-      Pointer<Device> dev;
 
-      for (auto p = Entries; p->Fn && !dev.Get(); ++p)
+      for (auto p = Entries; p->Fn; ++p)
       {
          p->Fn(e.ReleaseAndGetAddressOf(), err);
-         if (!ERROR_FAILED(err) && e.Get())
-            e->GetDefaultDevice(dev.ReleaseAndGetAddressOf(), err);
+         error_clear(err);
+         if (!e.Get())
+            continue;
+
+         try
+         {
+            enumerators.push_back(e);
+         }
+         catch (std::bad_alloc)
+         {
+            ERROR_SET(err, nomem);
+         }
+      }
+   exit:;
+   }
+
+   void GetDefaultDevice(Device **output, error *err)
+   {
+      Pointer<Device> dev;
+
+      for (auto &e : enumerators)
+      {
+         e->GetDefaultDevice(dev.ReleaseAndGetAddressOf(), err);
          if (ERROR_FAILED(err))
          {
             dev = nullptr;
@@ -85,12 +106,15 @@ public:
    {
       int r = 0;
 
-      TryLoadDevices(err);
-      ERROR_CHECK(err);
+      for (auto &e : enumerators)
+      {
+         int r2 = e->GetDeviceCount(err);
+         if (ERROR_FAILED(err))
+            error_clear(err);
+         else
+            r += r2;
+      };
 
-      r = devices.size();
-
-   exit:
       return r;
    }
 
@@ -98,51 +122,30 @@ public:
    {
       Pointer<Device> dev;
 
-      TryLoadDevices(err);
-      ERROR_CHECK(err);
-
-      if (idx < 0 || idx >= devices.size())
+      if (idx < 0)
          ERROR_SET(err, unknown, "Device out of range");
 
-      dev = devices[idx];
-   exit:
-      *output = dev.Detach();
-   }
-
-private:
-   void TryLoadDevices(error *err)
-   {
-      Pointer<DeviceEnumerator> e;
-
-      for (auto p = Entries; p->Fn; ++p)
+      for (auto &e : enumerators)
       {
-         p->Fn(e.ReleaseAndGetAddressOf(), err);
-         if (ERROR_FAILED(err) || !e.Get())
+         int count = e->GetDeviceCount(err);
+         if (ERROR_FAILED(err))
          {
             error_clear(err);
             continue;
          }
-         for (int i=0, count = e->GetDeviceCount(err); i<count; ++i)
+         if (idx < count)
          {
-            Pointer<Device> dev;
-            if (ERROR_FAILED(err))
-               break;
-            e->GetDevice(i, dev.GetAddressOf(), err);
-            if (ERROR_FAILED(err))
-               break;
-            try
-            {
-               devices.push_back(dev);
-            }
-            catch (std::bad_alloc)
-            {
-               ERROR_SET(err, nomem);
-            }
+            e->GetDevice(idx, dev.GetAddressOf(), err);
+            ERROR_CHECK(err);
+            goto exit;
          }
-         if (ERROR_FAILED(err))
-            error_clear(err);
+         idx -= count;
       }
-   exit:;
+
+      ERROR_SET(err, unknown, "Device out of range");
+
+   exit:
+      *output = dev.Detach();
    }
 };
 
@@ -154,7 +157,14 @@ audio::GetDeviceEnumerator(DeviceEnumerator **out, error *err)
    DeviceEnumerationDispatch *r = nullptr;
    New(&r, err);
    ERROR_CHECK(err);
+   r->Initialize(err);
+   ERROR_CHECK(err);
 exit:
+   if (ERROR_FAILED(err) && r)
+   {
+      delete r;
+      r = nullptr;
+   }
    *out = r;
 }
 

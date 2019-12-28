@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,6 +29,8 @@ using namespace audio;
 #if !defined(SNDCTL_DSP_HALT_OUTPUT)
 #define SNDCTL_DSP_HALT_OUTPUT SNDCTL_COPR_HALT
 #endif
+
+#include "devnodeenum.h"
 
 namespace {
 
@@ -173,81 +176,97 @@ public:
    }
 };
 
-class OssEnumerator : public DeviceEnumerator
+class OssEnumerator : public DevNodeEnumerator
 {
-   std::vector<Pointer<Device>> devs;
-   Pointer<Device> defaultDev;
-
-   void TryOpen(const char *filename, Device **out)
+ protected:
+   void
+   Open(const char *filename, int fd, Device **out, error *err)
    {
-      int fd = open(filename, O_WRONLY);
-      if (fd >= 0)
+      try
       {
-         try
-         {
-            *out = new OssDev(filename, fd);
-            fd = -1;
-         }
-         catch (std::bad_alloc)
-         {
-         }
+         *out = new OssDev(filename, fd);
       }
-      if (fd >= 0)
+      catch (std::bad_alloc)
       {
-         close(fd);
+         ERROR_SET(err, nomem);
       }
+   exit:;
    }
 
-   void OnDevice(const Pointer<Device> &dev)
+#if defined(__linux__)
+   const char * const *
+   GetPossibleSubdirectories()
    {
-      devs.push_back(dev);
-      if (!defaultDev.Get())
-         defaultDev = dev;
+      static const char * const r[] =
+      {
+         "sound",
+         "snd",
+         nullptr,
+      };
+      return r;
+   }
+#endif
+
+   const char * const *
+   GetPossibleDeviceNodeNames(DevNodeEnumerator::Mode m)
+   {
+      static const char
+      * const
+      pcm[] =
+      {
+         "dsp",
+         nullptr,
+      },
+      * const
+      mixer[] =
+      {
+         "mixer",
+         nullptr,
+      };
+      switch (m)
+      {
+      case Pcm:
+         return pcm;
+      case Mixer:
+         return mixer;
+      case ConsiderEnvironment:
+         break;
+      }
+      return nullptr;
    }
 
 public:
 
-   void Initialize(error *err)
+   // FreeBSD does some interesting things with lazily created device
+   // nodes, so we can't rely on listing /dev to discover devices as
+   // done elsewhere.
+   //
+#if defined(__FreeBSD__)
+   int
+   GetDeviceCount(error *err)
    {
-      Pointer<Device> dev;
-      const char *env;
+      FILE *f = fopen("/dev/sndstat", "r");
+      char buf[1024];
+      char *p;
+      int max = -1;
 
-      env = getenv("AUDIODEV");
-      if (env)
-         TryOpen(env, dev.ReleaseAndGetAddressOf());
-      if (dev.Get())
-         OnDevice(dev);
+      if (!f)
+         ERROR_SET(err, errno, errno);
 
-      TryOpen("/dev/dsp", dev.ReleaseAndGetAddressOf());
-      if (dev.Get())
-         OnDevice(dev);
+      while ((p = fgets(buf, sizeof(buf), f)))
+      {
+         if (!strncmp(p, "pcm", 3))
+         {
+            int i;
+            if (check_atoi(p+3, i) && i > max)
+               max = i;
+         }
+      }
+   exit:
+      if (f) fclose(f);
+      return max >= 0 ? max+1 : 0;
    }
-
-   int GetDeviceCount(error *err)
-   {
-      return devs.size();
-   }
-
-   void GetDevice(int idx, Device **output, error *err)
-   {
-      Pointer<Device> dev;
-
-      if (idx < 0 || idx >= devs.size())
-         ERROR_SET(err, errno, EINVAL);
-
-      dev = devs[idx]; 
-
-   exit:;
-      *output = dev.Detach();
-   }
-
-   void GetDefaultDevice(Device **output, error *err)
-   {
-      Pointer<Device> r = defaultDev;
-      if (!r.Get() && devs.size())
-         r = devs[0];
-      *output = r.Detach();
-   }
+#endif
 };
 
 } // namespace
@@ -258,9 +277,6 @@ audio::GetOssDeviceEnumerator(DeviceEnumerator **out, error *err)
    Pointer<OssEnumerator> r;
 
    New(r.GetAddressOf(), err);
-   ERROR_CHECK(err);
-
-   r->Initialize(err);
    ERROR_CHECK(err);
 
 exit:
