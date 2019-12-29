@@ -6,13 +6,13 @@ WINDOWS_SUBSYSTEM=console
 include Makefile.inc
 CXXFLAGS += $(CFLAGS)
 
-all-phony: $(LIBCOMMON) $(LIBAUDIO) test$(EXESUFFIX)
+all-phony: $(LIBCOMMON) $(LIBAUDIO) play$(EXESUFFIX)
 
 TESTDEPENDS := $(LIBCOMMON) $(LIBAUDIO) $(XP_SUPPORT_OBJS)
 TESTFLAGS := $(CXXFLAGS) $(LIBAUDIO_CXXFLAGS)
 TESTLIBS := -L. -L$(LIBCOMMON_ROOT) -laudio -lcommon $(LDFLAGS) $(CXXLIBS)
 
-test$(EXESUFFIX): src/test.cc $(TESTDEPENDS)
+play$(EXESUFFIX): src/test/play.cc $(TESTDEPENDS)
 	$(CXX) -o $@ $(TESTFLAGS) $< $(TESTLIBS)
 
 clean:
@@ -23,7 +23,7 @@ clean:
 
 export
 depend:
-	env PROJECT=LIBAUDIO $(DEPEND) src/*.cc src/codecs/*.cc src/dev/*.cc \
+	env PROJECT=LIBAUDIO $(DEPEND) src/*.cc src/codecs/*.cc src/dev/*.cc src/test/*.cc \
 	 > depend.mk.tmp
 	env ROOT=LIBAUDIO PROJECT=ALAC $(DEPEND) $(ALAC_SRC) \
 	 >> depend.mk.tmp

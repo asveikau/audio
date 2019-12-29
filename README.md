@@ -10,7 +10,7 @@ It is subject to the following design considerations:
 
 ## API
 
-Browsing in [`include`][2] or the [test app][3] is probably your best start.
+Browsing in [`include`][2] or the [tests directory][3] is probably your best start.
 Overview of functionality:
 
 * [`AudioDevice.h`][4] abstracts the output device, giving various platforms a synchronous write() style interface.
@@ -61,7 +61,7 @@ The following is from the third_party subdir and may be linked statically:
 
 [1]: https://github.com/asveikau/common/blob/master/include/common/c%2B%2B/stream.h
 [2]: https://github.com/asveikau/audio/tree/master/include
-[3]: https://github.com/asveikau/audio/blob/master/src/test.cc
+[3]: https://github.com/asveikau/audio/blob/master/src/tests
 [4]: https://github.com/asveikau/audio/blob/master/include/AudioDevice.h
 [5]: https://github.com/asveikau/audio/blob/master/include/AudioSource.h
 [6]: https://github.com/asveikau/audio/blob/master/include/AudioCodec.h
