@@ -6,13 +6,16 @@ WINDOWS_SUBSYSTEM=console
 include Makefile.inc
 CXXFLAGS += $(CFLAGS)
 
-all-phony: $(LIBCOMMON) $(LIBAUDIO) play$(EXESUFFIX)
+all-phony: $(LIBCOMMON) $(LIBAUDIO) play$(EXESUFFIX) list-devices$(EXESUFFIX)
 
 TESTDEPENDS := $(LIBCOMMON) $(LIBAUDIO) $(XP_SUPPORT_OBJS)
 TESTFLAGS := $(CXXFLAGS) $(LIBAUDIO_CXXFLAGS)
 TESTLIBS := -L. -L$(LIBCOMMON_ROOT) -laudio -lcommon $(LDFLAGS) $(CXXLIBS)
 
 play$(EXESUFFIX): src/test/play.cc $(TESTDEPENDS)
+	$(CXX) -o $@ $(TESTFLAGS) $< $(TESTLIBS)
+
+list-devices$(EXESUFFIX): src/test/list-devices.cc $(TESTDEPENDS)
 	$(CXX) -o $@ $(TESTFLAGS) $< $(TESTLIBS)
 
 clean:
