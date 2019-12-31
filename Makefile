@@ -6,7 +6,10 @@ WINDOWS_SUBSYSTEM=console
 include Makefile.inc
 CXXFLAGS += $(CFLAGS)
 
-all-phony: $(LIBCOMMON) $(LIBAUDIO) play$(EXESUFFIX) list-devices$(EXESUFFIX)
+TESTS:=play list-devices
+TEST_TARGETS:=$(foreach i, $(TESTS), $(i)$(EXESUFFIX))
+
+all-phony: $(LIBCOMMON) $(LIBAUDIO) $(TEST_TARGETS)
 
 TESTDEPENDS := $(LIBCOMMON) $(LIBAUDIO) $(XP_SUPPORT_OBJS)
 TESTFLAGS := $(CXXFLAGS) $(LIBAUDIO_CXXFLAGS)
@@ -21,8 +24,7 @@ list-devices$(EXESUFFIX): src/test/list-devices.cc $(TESTDEPENDS)
 clean:
 	rm -f $(LIBCOMMON) $(LIBCOMMON_OBJS)
 	rm -f $(LIBAUDIO) $(LIBAUDIO_OBJS)
-	rm -f test$(EXESUFFIX)
-	rm -f test.obj
+	rm -f $(TEST_TARGETS) $(foreach i, $(TESTS), $(i).obj)
 
 export
 depend:
