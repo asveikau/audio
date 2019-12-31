@@ -61,7 +61,7 @@ The following is from the third_party subdir and may be linked statically:
 
 [1]: https://github.com/asveikau/common/blob/master/include/common/c%2B%2B/stream.h
 [2]: https://github.com/asveikau/audio/tree/master/include
-[3]: https://github.com/asveikau/audio/blob/master/src/tests
+[3]: https://github.com/asveikau/audio/blob/master/src/test
 [4]: https://github.com/asveikau/audio/blob/master/include/AudioDevice.h
 [5]: https://github.com/asveikau/audio/blob/master/include/AudioSource.h
 [6]: https://github.com/asveikau/audio/blob/master/include/AudioCodec.h
