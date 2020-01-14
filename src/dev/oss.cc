@@ -122,17 +122,11 @@ public:
            oldMetadata.Format != md.Format))
       {
          close(fd);
-         fd = -1;
-         try
-         {
-            fd = open(filename.c_str(), O_WRONLY);
-            if (fd < 0)
-               ERROR_SET(err, errno, errno);
-         }
-         catch (std::bad_alloc)
-         {
-            ERROR_SET(err, nomem);
-         }
+         fd = open(filename.c_str(), O_NONBLOCK | O_WRONLY);
+         if (fd < 0)
+            ERROR_SET(err, errno, errno);
+         if (fcntl(fd, F_SETFL, 0))
+            ERROR_SET(err, errno, errno);
       }
       else if (oldMetadata.Channels)
       {
@@ -236,6 +230,11 @@ class OssEnumerator : public DevNodeEnumerator
    }
 
 public:
+
+   OssEnumerator()
+   {
+      openNonBlock = true;
+   }
 
    // FreeBSD does some interesting things with lazily created device
    // nodes, so we can't rely on listing /dev to discover devices as

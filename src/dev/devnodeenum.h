@@ -43,6 +43,10 @@ protected:
       Flags               = ConsiderEnvironment,
    };
 
+   // Implementation should set to TRUE to call open(2) with O_NONBLOCK.
+   //
+   bool openNonBlock;
+
    virtual
    const char * const*
    GetPossibleSubdirectories()
@@ -235,7 +239,7 @@ private:
    {
       int fd = -1;
 
-      fd = open(filename, O_WRONLY);
+      fd = open(filename, (openNonBlock ? O_NONBLOCK : 0) | O_WRONLY);
       if (fd < 0)
       {
          // too noisy to log.
@@ -243,6 +247,12 @@ private:
          if (errno == ENOENT)
             goto exit;
 
+         ERROR_SET(err, errno, errno);
+      }
+
+      if (openNonBlock &&
+          fcntl(fd, F_SETFL, 0))
+      {
          ERROR_SET(err, errno, errno);
       }
 
@@ -394,7 +404,7 @@ public:
       *output = r.Detach();
    }
 
-   DevNodeEnumerator() : lastRequestedMode((Mode)-1) {}
+   DevNodeEnumerator() : openNonBlock(false), lastRequestedMode((Mode)-1) {}
 
 private:
    std::unique_ptr<const char, void (*)(const char*)>
