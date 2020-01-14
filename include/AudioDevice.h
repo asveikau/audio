@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018, 2019 Andrew Sveikauskas
+ Copyright (C) 2017-2020 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -82,11 +82,49 @@ struct Device : public RefCountable
    virtual void ProbeSampleRate(int rate, int &suggestedRate, error *err);
 };
 
+struct Mixer : public RefCountable
+{
+   typedef int value_t;
+
+   virtual int GetValueCount(error *err) = 0;
+   virtual const char *DescribeValue(int idx, error *err) = 0;
+
+   virtual int GetChannels(int idx, error *err) = 0;
+
+   // A device can specify values as floats or integers.
+   // The default implementation of either one will convert in terms of the
+   // other.  So an implementation need only provide integer or float, not both.
+   //
+   // Integer interface:
+   //
+   virtual void GetRange(int idx, value_t &min, value_t &max, error *err);
+   virtual void SetValue(int idx, const value_t *val, int n, error *err);
+   virtual int GetValue(int idx, value_t *value, int n, error *err);
+   // Float interface:
+   //
+   virtual void SetValue(int idx, const float *val, int n, error *err);
+   virtual int GetValue(int idx, float *val, int n, error *err);
+};
+
 struct DeviceEnumerator : public RefCountable
 {
    virtual int GetDeviceCount(error *err) = 0;
    virtual void GetDevice(int idx, Device **output, error *err) = 0;
    virtual void GetDefaultDevice(Device **output, error *err) = 0;
+
+   // The mixer API is new, so may be unsupported in some drivers.
+   //
+   virtual void GetMixer(int idx, Mixer **output, error *err) { NotImpl(err); }
+   virtual void GetDefaultMixer(Mixer **output, error *err) { NotImpl(err); }
+private:
+   void NotImpl(error *err)
+   {
+#if defined(_WINDOWS)
+      error_set_win32(err, E_NOTIMPL);
+#else
+      error_set_errno(err, ENOSYS);
+#endif
+   }
 };
 
 // Internal base class for single-device implementation.

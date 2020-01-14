@@ -66,6 +66,13 @@ protected:
    void
    Open(const char *filename, int fd, Device **out, error *err) = 0;
 
+   virtual
+   void
+   Open(const char *filename, int fd, struct Mixer **out, error *err)
+   {
+      error_set_errno(err, ENOSYS);
+   }
+
 private:
    std::vector<char> possibleDefaults;
    std::vector<const char *> possibleDefaultsPtr;
@@ -265,6 +272,31 @@ private:
          close(fd);
    }
 
+   void
+   Open(const char *filename, struct Mixer **out, error *err)
+   {
+      int fd = -1;
+
+      fd = open(filename, O_RDWR);
+      if (fd < 0)
+      {
+         // too noisy to log.
+         //
+         if (errno == ENOENT)
+            goto exit;
+
+         ERROR_SET(err, errno, errno);
+      }
+
+      Open(filename, fd, out, err);
+      ERROR_CHECK(err);
+
+      fd = -1;
+   exit:
+      if (fd >= 0)
+         close(fd);
+   }
+
 public:
 
    int
@@ -345,12 +377,41 @@ public:
    void
    GetDevice(int idx, Device **output, error *err)
    {
-      Pointer<Device> r;
+      GetDevice(idx, Pcm, output, err);
+   }
+
+   void
+   GetDefaultDevice(Device **output, error *err)
+   {
+      GetDefaultDevice(Pcm, output, err);
+   }
+
+   void
+   GetMixer(int idx, struct Mixer **output, error *err)
+   {
+      GetDevice(idx, Mixer, output, err);
+   }
+
+   void
+   GetDefaultMixer(struct Mixer **output, error *err)
+   {
+      GetDefaultDevice(Mixer, output, err);
+   }
+
+   DevNodeEnumerator() : openNonBlock(false), lastRequestedMode((Mode)-1) {}
+
+private:
+
+   template<typename T>
+   void
+   GetDevice(int idx, Mode mode, T **output, error *err)
+   {
+      Pointer<T> r;
 
       if (idx < 0)
          ERROR_SET(err, errno, EINVAL);
 
-      for (auto devNames = GetPossibleDefaultDevices(Pcm, err); devNames && *devNames; ++devNames)
+      for (auto devNames = GetPossibleDefaultDevices(mode, err); devNames && *devNames; ++devNames)
       {
          try
          {
@@ -389,11 +450,12 @@ public:
       *output = r.Detach();
    }
 
+   template<typename T>
    void
-   GetDefaultDevice(Device **output, error *err)
+   GetDefaultDevice(Mode mode, T **output, error *err)
    {
-      Pointer<Device> r;
-      for (auto devNames = GetPossibleDefaultDevices((Mode)(Pcm | ConsiderEnvironment), err); devNames && *devNames; ++devNames)
+      Pointer<T> r;
+      for (auto devNames = GetPossibleDefaultDevices((Mode)(mode | ConsiderEnvironment), err); devNames && *devNames; ++devNames)
       {
          Open(*devNames, r.ReleaseAndGetAddressOf(), err);
          if (ERROR_FAILED(err))
@@ -404,9 +466,6 @@ public:
       *output = r.Detach();
    }
 
-   DevNodeEnumerator() : openNonBlock(false), lastRequestedMode((Mode)-1) {}
-
-private:
    std::unique_ptr<const char, void (*)(const char*)>
    MakeNonDestructableString(const char *p)
    {

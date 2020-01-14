@@ -102,6 +102,29 @@ public:
       *output = dev.Detach();
    }
 
+   void GetDefaultMixer(struct Mixer **output, error *err)
+   {
+      Pointer<struct Mixer> dev;
+
+      for (auto &e : enumerators)
+      {
+         e->GetDefaultMixer(dev.ReleaseAndGetAddressOf(), err);
+         if (ERROR_FAILED(err))
+         {
+            dev = nullptr;
+            error_clear(err);
+         }
+      }
+
+      if (!dev.Get())
+         ERROR_SET(err, unknown, "Could not open default device");
+
+   exit:
+      if (ERROR_FAILED(err))
+         dev = nullptr;
+      *output = dev.Detach();
+   }
+
    int GetDeviceCount(error *err)
    {
       int r = 0;
@@ -136,6 +159,36 @@ public:
          if (idx < count)
          {
             e->GetDevice(idx, dev.GetAddressOf(), err);
+            ERROR_CHECK(err);
+            goto exit;
+         }
+         idx -= count;
+      }
+
+      ERROR_SET(err, unknown, "Device out of range");
+
+   exit:
+      *output = dev.Detach();
+   }
+
+   void GetMixer(int idx, struct Mixer **output, error *err)
+   {
+      Pointer<struct Mixer> dev;
+
+      if (idx < 0)
+         ERROR_SET(err, unknown, "Device out of range");
+
+      for (auto &e : enumerators)
+      {
+         int count = e->GetDeviceCount(err);
+         if (ERROR_FAILED(err))
+         {
+            error_clear(err);
+            continue;
+         }
+         if (idx < count)
+         {
+            e->GetMixer(idx, dev.GetAddressOf(), err);
             ERROR_CHECK(err);
             goto exit;
          }

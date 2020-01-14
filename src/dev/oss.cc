@@ -7,6 +7,7 @@
 */
 
 #include <common/c++/new.h>
+#include <common/misc.h>
 
 #include <AudioDevice.h>
 
@@ -170,6 +171,202 @@ public:
    }
 };
 
+class OssMixer : public Mixer
+{
+   int fd;
+   bool enumOccurred;
+   unsigned int devMask;
+   unsigned int stereoMask;
+
+   void
+   TryEnumInfo(error *err)
+   {
+      if (!enumOccurred)
+      {
+         if (ioctl(fd, SOUND_MIXER_READ_DEVMASK, &devMask) ||
+             ioctl(fd, SOUND_MIXER_READ_STEREODEVS, &stereoMask))
+            ERROR_SET(err, errno, errno);
+
+         enumOccurred = true;
+      }
+   exit:;
+   }
+
+   int
+   FindDev(int idx)
+   {
+      if (idx < 0 || idx >= sizeof(devMask)*8)
+         return -1;
+      for (int i=0; i<sizeof(devMask)*8; ++i)
+      {
+         if ((devMask & (1U << i)))
+         {
+            if (idx == 0)
+               return i;
+            --idx;
+         }
+      }
+      return -1;
+   }
+
+public:
+
+   OssMixer(const char *filename, int fd_)
+      : fd(fd_), enumOccurred(false)
+   {
+   }
+
+   ~OssMixer()
+   {
+      if (fd >= 0)
+         close(fd);
+   }
+
+   int
+   GetValueCount(error *err)
+   {
+      int r = 0;
+      TryEnumInfo(err);
+      ERROR_CHECK(err);
+
+      r = __builtin_popcount(devMask);
+   exit:
+      return r;
+   }
+
+   const char *
+   DescribeValue(int idx, error *err)
+   {
+      const char *r = nullptr;
+      static const char *labels[] = SOUND_DEVICE_NAMES;
+
+      TryEnumInfo(err);
+      ERROR_CHECK(err);
+
+      if ((idx = FindDev(idx)) < 0)
+         ERROR_SET(err, unknown, "Invalid index");
+      else if (idx >= 0 && idx < ARRAY_SIZE(labels))
+         r = labels[idx];
+      else
+         r = "unknown";
+   exit:
+      return r;
+   }
+
+   int
+   GetChannels(int idx, error *err)
+   {
+      TryEnumInfo(err);
+      ERROR_CHECK(err);
+
+      if ((idx = FindDev(idx)) < 0)
+         ERROR_SET(err, unknown, "Invalid index");
+
+      return (stereoMask & (1U << idx)) ? 2 : 1;
+   exit:
+      return 0;
+   }
+
+   void
+   GetRange(int idx, value_t &min, value_t &max, error *err)
+   {
+      min = 0;
+      max = 100;
+   }
+
+   void
+   SetValue(int idx, const value_t *val, int n, error *err)
+   {
+      int ival;
+
+      TryEnumInfo(err);
+      ERROR_CHECK(err);
+
+      if ((idx = FindDev(idx)) < 0)
+         ERROR_SET(err, unknown, "Invalid index");
+
+      if (!n)
+         goto exit;
+      if (n < 0)
+         ERROR_SET(err, unknown, "Invalid byte count");
+
+      if ((stereoMask & (1U << idx)))
+      {
+         if (n >= 2)
+            ival = (val[1] << 8) | val[0];
+         else if (n == 1)
+            ival = (val[0] << 8) | val[0];
+         else
+            ERROR_SET(err, unknown, "Invalid channel setup");
+      }
+      else if (n >= 1)
+      {
+         ival = val[0];
+      }
+      else
+      {
+         ERROR_SET(err, unknown, "Invalid channel setup");
+      }
+
+      if (ioctl(fd, MIXER_WRITE(idx), &ival))
+         ERROR_SET(err, errno, errno);
+
+   exit:;
+   }
+
+   int
+   GetValue(int idx, value_t *value, int n, error *err)
+   {
+      int r = 0;
+      int ival;
+
+      TryEnumInfo(err);
+      ERROR_CHECK(err);
+
+      if ((idx = FindDev(idx)) < 0)
+         ERROR_SET(err, unknown, "Invalid index");
+
+      if (!n)
+         goto exit;
+      if (n < 0)
+         ERROR_SET(err, unknown, "Invalid byte count");
+
+      if (ioctl(fd, MIXER_READ(idx), &ival))
+         ERROR_SET(err, errno, errno);
+
+      if ((stereoMask & (1U << idx)))
+      {
+         if (n >= 2)
+         {
+            value[0] = (ival & 0xff);
+            value[1] = (ival >> 8) & 0xff;
+            r = 2;
+         }
+         else if (n == 1)
+         {
+            value[0] = ival;
+            r = 1;
+         }
+         else
+         {
+            ERROR_SET(err, unknown, "Invalid channel setup");
+         }
+      }
+      else if (n >= 1)
+      {
+         value[0] = ival;
+         r = 1;
+      }
+      else
+      {
+         ERROR_SET(err, unknown, "Invalid channel setup");
+      }
+
+   exit:
+      return r;
+   }
+};
+
 class OssEnumerator : public DevNodeEnumerator
 {
  protected:
@@ -179,6 +376,20 @@ class OssEnumerator : public DevNodeEnumerator
       try
       {
          *out = new OssDev(filename, fd);
+      }
+      catch (std::bad_alloc)
+      {
+         ERROR_SET(err, nomem);
+      }
+   exit:;
+   }
+
+   void
+   Open(const char *filename, int fd, struct Mixer **out, error *err)
+   {
+      try
+      {
+         *out = new OssMixer(filename, fd);
       }
       catch (std::bad_alloc)
       {

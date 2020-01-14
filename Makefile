@@ -6,7 +6,7 @@ WINDOWS_SUBSYSTEM=console
 include Makefile.inc
 CXXFLAGS += $(CFLAGS)
 
-TESTS:=play list-devices
+TESTS:=play list-devices mixer
 TEST_TARGETS:=$(foreach i, $(TESTS), $(i)$(EXESUFFIX))
 
 all-phony: $(LIBCOMMON) $(LIBAUDIO) $(TEST_TARGETS)
@@ -19,6 +19,9 @@ play$(EXESUFFIX): src/test/play.cc $(TESTDEPENDS)
 	$(CXX) -o $@ $(TESTFLAGS) $< $(TESTLIBS)
 
 list-devices$(EXESUFFIX): src/test/list-devices.cc $(TESTDEPENDS)
+	$(CXX) -o $@ $(TESTFLAGS) $< $(TESTLIBS)
+
+mixer$(EXESUFFIX): src/test/mixer.cc $(TESTDEPENDS)
 	$(CXX) -o $@ $(TESTFLAGS) $< $(TESTLIBS)
 
 clean:
