@@ -12,6 +12,7 @@
 
 #include <common/logger.h>
 #include <common/c++/new.h>
+#include <common/misc.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -21,6 +22,20 @@ using namespace common;
 using namespace audio;
 
 namespace {
+
+void
+error_set_alsa(error *err, int code)
+{
+   if (!code)
+      return;
+   error_clear(err);
+   memcpy(&err->source, "alsa", MIN(4, sizeof(err->source)));
+   err->code = code;
+   err->get_string = [] (error *err) -> const char *
+   {
+      return snd_strerror(err->code);
+   };
+}
 
 class AlsaDev : public Device
 {
@@ -71,7 +86,8 @@ public:
             pcm = nullptr; 
 
             r = snd_pcm_open(&pcm, devName.c_str(), SND_PCM_STREAM_PLAYBACK, 0);
-            if (r) ERROR_SET(err, unknown, snd_strerror(r));
+            if (r)
+               ERROR_SET(err, alsa, r);
          }
          catch (std::bad_alloc)
          {
@@ -89,7 +105,8 @@ public:
       snd_pcm_hw_params_any(pcm, params);
 
       r = snd_pcm_hw_params_set_access(pcm, params, SND_PCM_ACCESS_RW_INTERLEAVED);
-      if (r) ERROR_SET(err, unknown, snd_strerror(r));
+      if (r)
+         ERROR_SET(err, alsa, r);
 
       switch (md.Format)
       {
@@ -105,16 +122,20 @@ public:
          params, 
          fmt
       );
-      if (r) ERROR_SET(err, unknown, snd_strerror(r));
+      if (r)
+         ERROR_SET(err, alsa, r);
 
       r = snd_pcm_hw_params_set_channels(pcm, params, md.Channels);
-      if (r) ERROR_SET(err, unknown, snd_strerror(r));
+      if (r)
+         ERROR_SET(err, alsa, r);
 
       r = snd_pcm_hw_params_set_rate_near(pcm, params, &rate, nullptr);
-      if (r) ERROR_SET(err, unknown, snd_strerror(r));
+      if (r)
+         ERROR_SET(err, alsa, r);
 
       r = snd_pcm_hw_params(pcm, params);
-      if (r) ERROR_SET(err, unknown, snd_strerror(r));
+      if (r)
+         ERROR_SET(err, alsa, r);
 
       oldMetadata = md;
    exit:;
@@ -128,7 +149,7 @@ public:
       if (r == -EPIPE)
          snd_pcm_prepare(pcm);
       else if (r < 0)
-         ERROR_SET(err, unknown, snd_strerror(r));
+         ERROR_SET(err, alsa, r);
    exit:;
    }
 
@@ -166,7 +187,8 @@ public:
       if (suggestion)
       {
          r = snd_pcm_hw_params_set_rate_near(pcm, params, &rateParam, nullptr);
-         if (r) ERROR_SET(err, unknown, snd_strerror(r));
+         if (r)
+            ERROR_SET(err, alsa, r);
          *suggestion = rateParam;
       }
    exit:
@@ -233,13 +255,14 @@ public:
       snd_lib_error_set_handler(ErrorCallback);
    }
 
-   void GetDefaultDevice(Device **output, error *err)
+   void
+   GetDefaultDevice(Device **output, error *err)
    {
       snd_pcm_t *pcm = nullptr;
       int r = snd_pcm_open(&pcm, GetDefaultDevice(), SND_PCM_STREAM_PLAYBACK, 0);
 
       if (r)
-         ERROR_SET(err, unknown, snd_strerror(r));
+         ERROR_SET(err, alsa, r);
 
       try
       {
