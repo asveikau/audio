@@ -43,8 +43,8 @@ class AlsaDev : public Device
    Metadata oldMetadata;
 
 public:
-   AlsaDev(snd_pcm_t *pcm_) :
-      pcm(pcm_)
+   AlsaDev()
+      : pcm(nullptr)
    {
       memset(&oldMetadata, 0, sizeof(oldMetadata));
    }
@@ -56,6 +56,15 @@ public:
          snd_pcm_drain(pcm);
          snd_pcm_close(pcm);
       }
+   }
+
+   void
+   Initialize(const char *device, error *err)
+   {
+      int r = snd_pcm_open(&pcm, device, SND_PCM_STREAM_PLAYBACK, 0);
+      if (r)
+         ERROR_SET(err, alsa, r);
+   exit:;
    }
 
    const char *GetName(error *err)
@@ -83,7 +92,7 @@ public:
 
             snd_pcm_drain(pcm);
             snd_pcm_close(pcm);
-            pcm = nullptr; 
+            pcm = nullptr;
 
             r = snd_pcm_open(&pcm, devName.c_str(), SND_PCM_STREAM_PLAYBACK, 0);
             if (r)
@@ -119,7 +128,7 @@ public:
 
       r = snd_pcm_hw_params_set_format(
          pcm,
-         params, 
+         params,
          fmt
       );
       if (r)
@@ -258,25 +267,18 @@ public:
    void
    GetDefaultDevice(Device **output, error *err)
    {
-      snd_pcm_t *pcm = nullptr;
-      int r = snd_pcm_open(&pcm, GetDefaultDevice(), SND_PCM_STREAM_PLAYBACK, 0);
+      Pointer<AlsaDev> pcm;
 
-      if (r)
-         ERROR_SET(err, alsa, r);
+      New(pcm, err);
+      ERROR_CHECK(err);
 
-      try
-      {
-         *output = new AlsaDev(pcm);
-      }
-      catch (std::bad_alloc)
-      {
-         ERROR_SET(err, nomem);
-      }
-      pcm = nullptr;
+      pcm->Initialize(GetDefaultDevice(), err);
+      ERROR_CHECK(err);
 
    exit:
-      if (pcm)
-         snd_pcm_close(pcm);
+      if (ERROR_FAILED(err))
+         pcm = nullptr;
+      *output = pcm.Detach();
    }
 
 private:
