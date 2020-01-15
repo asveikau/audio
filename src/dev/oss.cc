@@ -301,7 +301,7 @@ public:
       }
       else if (n >= 1)
       {
-         ival = val[0];
+         ival = val[0] | (val[0] << 8);
       }
       else
       {
@@ -344,7 +344,7 @@ public:
          }
          else if (n == 1)
          {
-            value[0] = ival;
+            value[0] = (ival & 0xff);
             r = 1;
          }
          else
@@ -354,7 +354,7 @@ public:
       }
       else if (n >= 1)
       {
-         value[0] = ival;
+         value[0] = (ival & 0xff);
          r = 1;
       }
       else
