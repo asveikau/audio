@@ -236,9 +236,10 @@ public:
    void GetDefaultDevice(Device **output, error *err)
    {
       snd_pcm_t *pcm = nullptr;
-      int r = snd_pcm_open(&pcm, "default", SND_PCM_STREAM_PLAYBACK, 0);
+      int r = snd_pcm_open(&pcm, GetDefaultDevice(), SND_PCM_STREAM_PLAYBACK, 0);
 
-      if (r) ERROR_SET(err, unknown, snd_strerror(r));
+      if (r)
+         ERROR_SET(err, unknown, snd_strerror(r));
 
       try
       {
@@ -253,6 +254,16 @@ public:
    exit:
       if (pcm)
          snd_pcm_close(pcm);
+   }
+
+private:
+   const char *
+   GetDefaultDevice()
+   {
+      const char *p = getenv("ALSA_DEFAULT_PCM");
+      if (!p)
+         p = "default";
+      return p;
    }
 };
 
