@@ -290,23 +290,12 @@ public:
       if (n < 0)
          ERROR_SET(err, unknown, "Invalid byte count");
 
-      if ((stereoMask & (1U << idx)))
-      {
-         if (n >= 2)
-            ival = (val[1] << 8) | val[0];
-         else if (n == 1)
-            ival = (val[0] << 8) | val[0];
-         else
-            ERROR_SET(err, unknown, "Invalid channel setup");
-      }
-      else if (n >= 1)
-      {
-         ival = val[0] | (val[0] << 8);
-      }
+      if ((stereoMask & (1U << idx)) && n >= 2)
+         ival = (val[1] << 8) | val[0];
+      else if (n == 1)
+         ival = (val[0] << 8) | val[0];
       else
-      {
          ERROR_SET(err, unknown, "Invalid channel setup");
-      }
 
       if (ioctl(fd, MIXER_WRITE(idx), &ival))
          ERROR_SET(err, errno, errno);
@@ -344,7 +333,10 @@ public:
          }
          else if (n == 1)
          {
-            value[0] = (ival & 0xff);
+            // The sample is in stereo but the caller only asked for one
+            // channel.  Take an average.
+            //
+            value[0] = ((ival & 0xff) + ((ival >> 8) & 0xff)) / 2;
             r = 1;
          }
          else
