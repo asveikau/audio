@@ -141,6 +141,15 @@ struct SingleDeviceEnumerator : public DeviceEnumerator
       GetDefaultDevice(output, err);
    exit:;
    }
+
+   void GetMixer(int idx, struct Mixer **output, error *err)
+   {
+      if (idx < 0 || idx >= GetDeviceCount(err))
+         ERROR_SET(err, unknown, "Invalid argument");
+
+      GetDefaultMixer(output, err);
+   exit:;
+   }
 };
 
 void
