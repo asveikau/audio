@@ -91,6 +91,8 @@ public:
             dev = nullptr;
             error_clear(err);
          }
+         if (dev.Get())
+            break;
       }
 
       if (!dev.Get())
@@ -114,6 +116,8 @@ public:
             dev = nullptr;
             error_clear(err);
          }
+         if (dev.Get())
+            break;
       }
 
       if (!dev.Get())
