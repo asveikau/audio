@@ -39,7 +39,7 @@ int main(int argc, char **argv)
       const char *descr = nullptr;
 
       devEnum->GetDevice(i, dev.GetAddressOf(), &err);
-      if (ERROR_FAILED(&err))
+      if (ERROR_FAILED(&err) || !dev.Get())
       {
          error_clear(&err);
          descr = "Failed to open";
