@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2020 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <vector>
+#include <memory>
 
 using namespace common;
 using namespace audio;
@@ -230,6 +233,153 @@ public:
    }
 };
 
+class AlsaMixer : public Mixer
+{
+   snd_mixer_t *mix;
+   std::vector<snd_mixer_elem_t*> elems;
+   std::vector<std::unique_ptr<snd_mixer_selem_id_t, void(*)(snd_mixer_selem_id_t*)>> selemIds;
+public:
+   AlsaMixer() : mix(nullptr) {}
+   ~AlsaMixer()
+   {
+      if (mix)
+         snd_mixer_close(mix);
+   }
+
+   void
+   Initialize(const char *device, error *err)
+   {
+      int r;
+      snd_mixer_selem_id_t *s = nullptr;
+
+      if ((r = snd_mixer_open(&mix, 0)))
+         ERROR_SET(err, alsa, r);
+
+      if ((r = snd_mixer_attach(mix, device)))
+         ERROR_SET(err, alsa, r);
+
+      if ((r = snd_mixer_selem_register(mix, nullptr, nullptr)))
+         ERROR_SET(err, alsa, r);
+
+      if ((r = snd_mixer_load(mix)))
+         ERROR_SET(err, alsa, r);
+
+      for (auto e=snd_mixer_first_elem(mix); e; e=snd_mixer_elem_next(e))
+      {
+         if (!snd_mixer_selem_is_active(e) ||
+             !snd_mixer_selem_has_playback_volume(e))
+            continue;
+
+         if ((r = snd_mixer_selem_id_malloc(&s)))
+            ERROR_SET(err, alsa, r);
+         snd_mixer_selem_get_id(e, s);
+
+         try
+         {
+            auto p = std::unique_ptr<
+               snd_mixer_selem_id_t, void(*)(snd_mixer_selem_id_t*)
+            >(s, snd_mixer_selem_id_free);
+            s = nullptr;
+            selemIds.push_back(std::move(p));
+            elems.push_back(e);
+         }
+         catch (std::bad_alloc)
+         {
+            ERROR_SET(err, nomem);
+         }
+      }
+
+   exit:
+      if (s)
+         snd_mixer_selem_id_free(s);
+   }
+
+   int
+   GetValueCount(error *err)
+   {
+      return elems.size();
+   }
+
+   const char *
+   DescribeValue(int idx, error *err)
+   {
+      const char *r = nullptr;
+      if (idx < 0 || idx >= elems.size())
+         ERROR_SET(err, unknown, "Invalid index");
+      r = snd_mixer_selem_id_get_name(selemIds[idx].get());
+   exit:
+      return r;
+   }
+
+   int
+   GetChannels(int idx, error *err)
+   {
+      int r = 0;
+      if (idx < 0 || idx >= elems.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      r = snd_mixer_selem_is_playback_mono(elems[idx]) ? 1 : 2;
+   exit:
+      return r;
+   }
+
+   void
+   GetRange(int idx, value_t &min, value_t &max, error *err)
+   {
+      long minl, maxl;
+
+      if (idx < 0 || idx >= elems.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      snd_mixer_selem_get_playback_volume_range(elems[idx], &minl, &maxl);
+      min = minl;
+      max = maxl;
+   exit:;
+   }
+
+   void
+   SetValue(int idx, const value_t *val, int n, error *err)
+   {
+      n = MIN(n, GetChannels(idx, err));
+      ERROR_CHECK(err);
+
+      for (int i = 0; i<n; ++i)
+      {
+         int r = snd_mixer_selem_set_playback_volume(
+            elems[idx],
+            (snd_mixer_selem_channel_id_t)i,
+            *val++
+         );
+         if (r)
+            ERROR_SET(err, alsa, r);
+      }
+   exit:;
+   }
+
+   int
+   GetValue(int idx, value_t *value, int n, error *err)
+   {
+      n = MIN(n, GetChannels(idx, err));
+      ERROR_CHECK(err);
+
+      for (int i=0; i<n; ++i)
+      {
+         long level = 0;
+         int r = snd_mixer_selem_get_playback_volume(
+            elems[idx],
+            (snd_mixer_selem_channel_id_t)i,
+            &level
+         );
+         if (r)
+            ERROR_SET(err, alsa, r);
+         *value++ = level;
+      }
+
+   exit:
+      return ERROR_FAILED(err) ? 0 : n;
+   }
+};
+
 void ErrorCallback(
    const char *file,
    int line,
@@ -281,6 +431,22 @@ public:
       *output = pcm.Detach();
    }
 
+   void
+   GetDefaultMixer(struct Mixer **output, error *err)
+   {
+      Pointer<AlsaMixer> mixer;
+
+      New(mixer, err);
+      ERROR_CHECK(err);
+
+      mixer->Initialize(GetDefaultMixer(), err);
+      ERROR_CHECK(err);
+   exit:
+      if (ERROR_FAILED(err))
+         mixer = nullptr;
+      *output = mixer.Detach();
+   }
+
 private:
    const char *
    GetDefaultDevice()
@@ -288,6 +454,15 @@ private:
       const char *p = getenv("ALSA_DEFAULT_PCM");
       if (!p)
          p = "default";
+      return p;
+   }
+
+   const char *
+   GetDefaultMixer()
+   {
+      const char *p = getenv("ALSA_DEFAULT_CTL");
+      if (!p)
+         p = GetDefaultDevice();
       return p;
    }
 };
