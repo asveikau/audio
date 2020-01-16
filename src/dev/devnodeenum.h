@@ -455,13 +455,28 @@ private:
    GetDefaultDevice(Mode mode, T **output, error *err)
    {
       Pointer<T> r;
+      auto checkError = [&] () -> void
+      {
+         if (ERROR_FAILED(err))
+         {
+            error_clear(err);
+            r = nullptr;
+         }
+      };
+
       for (auto devNames = GetPossibleDefaultDevices((Mode)(mode | ConsiderEnvironment), err); devNames && *devNames; ++devNames)
       {
          Open(*devNames, r.ReleaseAndGetAddressOf(), err);
-         if (ERROR_FAILED(err))
-            error_clear(err);
-         else if (r.Get())
+         checkError();
+         if (r.Get())
             break;
+      }
+      // eg. on OpenBSD, the audio -> audio0 symlink isn't created for us.
+      //
+      if (!r.Get())
+      {
+         GetDevice(0, mode, r.ReleaseAndGetAddressOf(), err);
+         checkError();
       }
       *output = r.Detach();
    }

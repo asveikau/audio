@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018, 2019 Andrew Sveikauskas
+ Copyright (C) 2017-2020 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -72,6 +72,9 @@ public:
 
    void SetMetadata(const Metadata &md, error *err)
    {
+#if defined(AUDIO_SETINFO)
+      // NetBSD, Sun
+      //
       struct audio_info info;
 
       AUDIO_INITINFO(&info);
@@ -95,7 +98,32 @@ public:
 
       if (ioctl(fd, AUDIO_SETINFO, &info))
          ERROR_SET(err, errno, errno);
+#else
+      // OpenBSD
+      //
+      struct audio_swpar par;
 
+      AUDIO_INITPAR(&par);
+
+      par.rate = md.SampleRate;
+      par.pchan = md.Channels;
+
+      switch (md.Format)
+      {
+      case PcmShort:
+         par.sig = 1;
+         par.le = *(unsigned char*)(&par.sig);
+         par.bits = 16;
+         par.msb = 1;
+         par.bps = par.bits/8;
+         break;
+      default:
+         ERROR_SET(err, unknown, "Unknown format");
+      }
+
+      if (ioctl(fd, AUDIO_SETPAR, &par))
+         ERROR_SET(err, errno, errno);
+#endif
    exit:;
    }
 
@@ -112,6 +140,7 @@ public:
    void
    ProbeSampleRate(int rate, int &suggestion, error *err)
    {
+#if defined(AUDIO_SETINFO)
       struct audio_info info;
 
       AUDIO_INITINFO(&info);
@@ -123,6 +152,19 @@ public:
       {
          suggestion = info.play.sample_rate;
       }
+#else
+      struct audio_swpar par;
+
+      AUDIO_INITPAR(&par);
+
+      par.rate = rate;
+
+      if (!ioctl(fd, AUDIO_SETPAR, &par) &&
+          !ioctl(fd, AUDIO_GETPAR, &par))
+      {
+         suggestion = par.rate;
+      }
+#endif
    }
 };
 

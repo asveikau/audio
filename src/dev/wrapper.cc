@@ -26,6 +26,9 @@ struct Entry
 const Entry
 Entries[] =
 {
+#if defined(USE_SNDIO)
+   { GetSndioDeviceEnumerator },
+#endif
 #if defined(USE_ALSA)
    { GetAlsaDeviceEnumerator },
 #endif
@@ -37,9 +40,6 @@ Entries[] =
 #endif
 #if defined(USE_OSS)
    { GetOssDeviceEnumerator },
-#endif
-#if defined(USE_SNDIO)
-   { GetSndioDeviceEnumerator },
 #endif
 #if defined(USE_WASAPI)
    { GetWasapiDeviceEnumerator },

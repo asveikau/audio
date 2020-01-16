@@ -59,7 +59,7 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/player.cc \
    $(LIBAUDIO_ROOT)src/source.cc
 
-ifneq (, $(filter $(PLATFORM),netbsd sunos))
+ifneq (, $(filter $(PLATFORM),netbsd sunos openbsd))
 LIBAUDIO_SRC+=\
    $(LIBAUDIO_ROOT)src/dev/devaudio.cc
 LIBAUDIO_CFLAGS+=-DUSE_DEVAUDIO

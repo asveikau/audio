@@ -43,7 +43,7 @@ Currently there are audio playback drivers for:
 * Mac: CoreAudio
 * Linux: ALSA, OSS
 * FreeBSD: OSS
-* OpenBSD: sndio
+* OpenBSD: sndio, audio(4)
 * NetBSD and Solaris: audio(4)
 
 Proprietary codec support can come from:
