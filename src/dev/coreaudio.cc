@@ -367,6 +367,151 @@ public:
    }
 };
 
+class CoreAudioMixer : public Mixer
+{
+   AudioDeviceID dev;
+
+public:
+
+   CoreAudioMixer()
+      : dev(kAudioObjectUnknown)
+   {
+   }
+
+   void
+   Initialize(error *err)
+   {
+      GetDevice(err);
+   }
+
+   int
+   GetValueCount(error *err)
+   {
+      return 1;
+   }
+
+   const char *
+   DescribeValue(int idx, error *err)
+   {
+      const char *r = nullptr;
+      ValidateIndex(idx, err);
+      ERROR_CHECK(err);
+      switch (idx)
+      {
+      case 0:
+         r = "vol"; // case and abbrevation matches OSS
+         break;
+      }
+   exit:
+      return r;
+   }
+
+   int
+   GetChannels(int idx, error *err)
+   {
+      int r = 0;
+      ValidateIndex(idx, err);
+      ERROR_CHECK(err);
+      r = 1;
+   exit:
+      return r;
+   }
+
+   void
+   SetValue(int idx, const float *val, int n, error *err)
+   {
+      AudioObjectPropertyAddress addr = {0};
+      OSStatus status = 0;
+
+      GetIndex(idx, &addr, err);
+
+      if (n < 1)
+         ERROR_SET(err, unknown, "Buffer too small");
+
+      status = AudioObjectSetPropertyData(dev, &addr, 0, nullptr, sizeof(*val) * n, val);
+      if (status)
+         ERROR_SET(err, osstatus, status);
+
+   exit:;
+   }
+
+   int
+   GetValue(int idx, float *val, int n, error *err)
+   {
+      int r = 0;
+      AudioObjectPropertyAddress addr = {0};
+      OSStatus status = 0;
+      UInt32 sz = 0;
+
+      GetIndex(idx, &addr, err);
+      ERROR_CHECK(err);
+
+      if (n < 1)
+         ERROR_SET(err, unknown, "Buffer too small");
+
+      sz = sizeof(*val) * n;
+      status = AudioObjectGetPropertyData(dev, &addr, 0, nullptr, &sz, val);
+      if (status)
+         ERROR_SET(err, osstatus, status);
+
+      r = sz/sizeof(*val);
+
+   exit:
+      return r;
+   }
+
+private:
+   void
+   ValidateIndex(int idx, error *err)
+   {
+      if (idx < 0 || (idx >= GetValueCount(err) && !ERROR_FAILED(err)))
+         error_set_unknown(err, "Invalid index");
+   }
+
+   void
+   GetDevice(error *err)
+   {
+      if (dev == kAudioObjectUnknown)
+      {
+         AudioObjectPropertyAddress addr = {0};
+         auto obj = kAudioObjectSystemObject;
+
+         addr.mScope = kAudioObjectPropertyScopeGlobal;
+         addr.mElement = kAudioObjectPropertyElementMaster;
+         addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+
+         if (AudioObjectHasProperty(obj, &addr))
+         {
+            UInt32 sz = sizeof(dev);
+            OSStatus status = AudioObjectGetPropertyData(obj, &addr, 0, nullptr, &sz, &dev);
+            if (status)
+               ERROR_SET(err, osstatus, status);
+         }
+
+         if (dev == kAudioObjectUnknown)
+            ERROR_SET(err, unknown, "Could not get audio device");
+      }
+   exit:;
+   }
+
+   void
+   GetIndex(int idx, AudioObjectPropertyAddress *addr, error *err)
+   {
+      ValidateIndex(idx, err);
+      ERROR_CHECK(err);
+
+      switch (idx)
+      {
+      case 0:
+         addr->mScope = kAudioDevicePropertyScopeOutput;
+         addr->mElement = kAudioObjectPropertyElementMaster;
+         addr->mSelector = kAudioHardwareServiceDeviceProperty_VirtualMasterVolume;
+         break;
+      }
+   exit:;
+   }
+};
+
 struct CoreAudioEnumerator : public SingleDeviceEnumerator
 {
    void GetDefaultDevice(Device **output, error *err)
@@ -374,6 +519,21 @@ struct CoreAudioEnumerator : public SingleDeviceEnumerator
       Pointer<CoreAudioDevice> r;
 
       New(r.GetAddressOf(), err);
+      ERROR_CHECK(err);
+
+   exit:
+      if (ERROR_FAILED(err)) r = nullptr;
+      *output = r.Detach();
+   }
+
+   void GetDefaultMixer(Mixer **output, error *err)
+   {
+      Pointer<CoreAudioMixer> r;
+
+      New(r.GetAddressOf(), err);
+      ERROR_CHECK(err);
+
+      r->Initialize(err);
       ERROR_CHECK(err);
 
    exit:

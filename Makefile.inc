@@ -110,6 +110,7 @@ LIBAUDIO_SRC+=\
    $(LIBAUDIO_ROOT)src/dev/coreaudio.cc
 LIBAUDIO_CFLAGS+=-DUSE_COREAUDIO
 LDFLAGS+=-framework AudioToolbox
+LDFLAGS+=-framework CoreAudio
 LDFLAGS+=-framework IOKit
 endif
 
