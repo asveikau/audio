@@ -7,8 +7,7 @@
 */
 
 #include <AudioDevice.h>
-
-#include <vector>
+#include "stackarray.h"
 
 //
 // Unit conversions for volume.
@@ -24,7 +23,7 @@ audio::Mixer::GetRange(int idx, value_t &min, value_t &max, error *err)
 void
 audio::Mixer::SetValue(int idx, const value_t *val, int n, error *err)
 {
-   std::vector<float> floats;
+   StackArray<float, 2> floats;
    value_t min, max;
    float mult;
 
@@ -36,21 +35,15 @@ audio::Mixer::SetValue(int idx, const value_t *val, int n, error *err)
 
    mult = 1.0f / (max - min);
 
-   try
-   {
-      floats.resize(n);
-   }
-   catch (std::bad_alloc)
-   {
-      ERROR_SET(err, nomem);
-   }
+   floats.resize(n, err);
+   ERROR_CHECK(err);
 
    for (auto &f : floats)
    {
       f = mult * (*val++ - min);
    }
 
-   SetValue(idx, floats.data(), floats.size(), err);
+   SetValue(idx, floats.begin(), floats.end() - floats.begin(), err);
    ERROR_CHECK(err);
 exit:;
 }
@@ -59,23 +52,18 @@ int
 audio::Mixer::GetValue(int idx, value_t *value, int n, error *err)
 {
    int r = 0;
-   std::vector<float> floats;
+   StackArray<float, 2> floats;
    value_t min, max;
    GetRange(idx, min, max, err);
    ERROR_CHECK(err);
 
-   try
-   {
-      floats.resize(n);
-   }
-   catch (std::bad_alloc)
-   {
-      ERROR_SET(err, nomem);
-   }
-
-   r = GetValue(idx, floats.data(), n, err);
+   floats.resize(n, err);
    ERROR_CHECK(err);
-   floats.resize(r);
+
+   r = GetValue(idx, floats.begin(), n, err);
+   ERROR_CHECK(err);
+   floats.resize(r, err);
+   ERROR_CHECK(err);
 
    for (auto f : floats)
    {
@@ -88,26 +76,20 @@ exit:
 void
 audio::Mixer::SetValue(int idx, const float *floats, int n, error *err)
 {
-   std::vector<value_t> values;
+   StackArray<value_t, 2> values;
    value_t min, max;
    GetRange(idx, min, max, err);
    ERROR_CHECK(err);
 
-   try
-   {
-      values.resize(n);
-   }
-   catch (std::bad_alloc)
-   {
-      ERROR_SET(err, nomem);
-   }
+   values.resize(n, err);
+   ERROR_CHECK(err);
 
    for (auto &v : values)
    {
       v = ((max - min) * (*floats++)) + min;
    }
 
-   SetValue(idx, values.data(), values.size(), err);
+   SetValue(idx, values.begin(), values.end() - values.begin(), err);
    ERROR_CHECK(err);
 exit:;
 }
@@ -116,7 +98,7 @@ int
 audio::Mixer::GetValue(int idx, float *floats, int n, error *err)
 {
    int r = 0;
-   std::vector<value_t> values;
+   StackArray<value_t, 2> values;
    value_t min, max;
    float mult;
 
@@ -128,18 +110,13 @@ audio::Mixer::GetValue(int idx, float *floats, int n, error *err)
 
    mult = 1.0f / (max - min);
 
-   try
-   {
-      values.resize(n);
-   }
-   catch (std::bad_alloc)
-   {
-      ERROR_SET(err, nomem);
-   }
-
-   r = GetValue(idx, values.data(), n, err);
+   values.resize(n, err);
    ERROR_CHECK(err);
-   values.resize(r);
+
+   r = GetValue(idx, values.begin(), n, err);
+   ERROR_CHECK(err);
+   values.resize(r, err);
+   ERROR_CHECK(err);
 
    for (auto v : values)
    {
