@@ -41,13 +41,18 @@ int main(int argc, char **argv)
       ERROR_CHECK(&err);
       auto channels = dev->GetChannels(i, &err);
       ERROR_CHECK(&err);
+#if defined(_MSC_VER)
+      float *f = (float*)_alloca(channels * sizeof(float));
+#else
       float f[channels];
+#endif
       dev->GetValue(i, f, channels, &err);
       ERROR_CHECK(&err);
 
       printf("%s:", descr);
-      for (auto fv : f)
+      for (int i=0; i<channels; ++i)
       {
+         auto &fv = f[i];
          printf(" %d", (int)(fv * 100));
       }
       puts("");
