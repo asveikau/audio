@@ -117,7 +117,7 @@ public:
          &fmt,
          (DWORD_PTR)event,
          0,
-         CALLBACK_EVENT
+         CALLBACK_EVENT | WAVE_ALLOWSYNC
       );
       if (res) ERROR_SET(err, winmm, res);
 
