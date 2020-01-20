@@ -93,6 +93,12 @@ public:
          CloseHandle(event);
    }
 
+   HWAVEOUT
+   GetHandle()
+   {
+      return waveOut;
+   }
+
    void SetMetadata(const Metadata &metadata, error *err)
    {
       MMRESULT res = 0;
@@ -264,14 +270,254 @@ public:
    }
 };
 
+class WinMmMixer : public Mixer
+{
+   HMIXER mixer;
+   char *onHeap;
+
+   struct ControlInfo
+   {
+      DWORD type;
+      DWORD destination;
+      DWORD control;
+      DWORD channels;
+      DWORD lineid;
+      DWORD multiple;
+   };
+
+   std::vector<ControlInfo> controls;
+
+public:
+   WinMmMixer() : mixer(nullptr), onHeap(nullptr)
+   {
+   }
+
+   ~WinMmMixer()
+   {
+      if (mixer)
+         mixerClose(mixer);
+      free(onHeap);
+   }
+
+   void
+   Initialize(UINT id, DWORD flags, error *err)
+   {
+      MIXERCAPS caps = {0};
+      MIXERCONTROL *controls = nullptr;
+
+      MMRESULT r = mixerOpen(&mixer, id, 0, 0, flags);
+      if (r)
+         ERROR_SET(err, winmm, r);
+
+      r = mixerGetID((HMIXEROBJ)mixer, &id, MIXER_OBJECTF_HMIXER);
+      if (r)
+         ERROR_SET(err, winmm, r);
+
+      r = mixerGetDevCaps(id, &caps, sizeof(caps));
+      if (r)
+         ERROR_SET(err, winmm, r);
+
+      for (DWORD i = 0; i<caps.cDestinations; ++i)
+      {
+         MIXERLINE line = {0};
+
+         line.cbStruct = sizeof(line);
+         line.dwDestination = i;
+
+         r = mixerGetLineInfo(
+            (HMIXEROBJ)mixer,
+            &line,
+            MIXER_GETLINEINFOF_DESTINATION | MIXER_OBJECTF_HMIXER
+         );
+         if (r)
+            ERROR_SET(err, winmm, r);
+
+         if (!line.cControls)
+            continue;
+
+         if (controls)
+            delete [] controls;
+         controls = new (std::nothrow) MIXERCONTROL[line.cControls];
+         if (!controls)
+            ERROR_SET(err, nomem);
+
+         MIXERLINECONTROLS lineControls = {0};
+
+         lineControls.cbStruct = sizeof(lineControls);
+         lineControls.dwLineID = line.dwLineID;
+         lineControls.cControls = line.cControls;
+         lineControls.pamxctrl = controls;
+         lineControls.cbmxctrl = sizeof(*controls);
+
+         r = mixerGetLineControls((HMIXEROBJ)mixer, &lineControls, MIXER_GETLINECONTROLSF_ALL | MIXER_OBJECTF_HMIXER);
+         if (r)
+            ERROR_SET(err, winmm, r);
+
+         for (DWORD j=0; j<lineControls.cControls; ++j)
+         {
+            ControlInfo info;
+
+            switch (controls[j].dwControlType)
+            {
+            case MIXERCONTROL_CONTROLTYPE_VOLUME:
+               break;
+            default:
+               continue;
+            }
+
+            info.type = controls[j].dwControlType;
+            info.destination = i;
+            info.control = controls[j].dwControlID;
+            info.channels = line.cChannels;
+            info.lineid = line.dwLineID;
+            info.multiple = controls[j].cMultipleItems;
+
+            try
+            {
+               this->controls.push_back(info);
+            }
+            catch (std::bad_alloc)
+            {
+               ERROR_SET(err, nomem);
+            }
+         }
+      }
+   exit:
+      if (controls)
+         delete [] controls;
+   }
+
+   int
+   GetValueCount(error *err)
+   {
+      return controls.size();
+   }
+
+   const char *
+   DescribeValue(int idx, error *err)
+   {
+      MIXERCONTROLDETAILS details = {0};
+      MIXERCONTROLDETAILS_LISTTEXT *text = nullptr;
+      MMRESULT r = 0;
+
+      if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      switch (controls[idx].type)
+      {
+      case MIXERCONTROL_CONTROLTYPE_VOLUME:
+         return "vol";
+      case MIXERCONTROL_CONTROLTYPE_MUTE:
+         return "mute";
+      }
+
+      // XXX not tested, not exercised.
+
+      text = (MIXERCONTROLDETAILS_LISTTEXT*)_alloca(sizeof(*text) * MAX(1, controls[idx].multiple));
+
+      details.cbStruct = sizeof(details);
+      details.dwControlID = controls[idx].control;
+      details.cChannels = controls[idx].channels;
+      details.cMultipleItems = controls[idx].multiple;
+      details.cbDetails = sizeof(*text);
+      details.paDetails = text;
+      r = mixerGetControlDetails(
+         (HMIXEROBJ)mixer,
+         &details,
+         MIXER_GETCONTROLDETAILSF_LISTTEXT | MIXER_OBJECTF_HMIXER
+      );
+      if (r)
+         ERROR_SET(err, winmm, r);
+      free(onHeap);
+      onHeap = ConvertToPstr(text->szName, err);
+      ERROR_CHECK(err);
+      return onHeap;
+   exit:
+      return nullptr;
+   }
+
+   int
+   GetChannels(int idx, error *err)
+   {
+      int r = 0;
+      if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+      r = controls[idx].channels;
+   exit:
+      return r;
+   }
+
+   void
+   GetRange(int idx, value_t &min, value_t &max, error *err)
+   {
+      if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+      min = 0;
+      max = 65535;
+   exit:;
+   }
+
+   void
+   SetValue(int idx, const value_t *value, int n, error *err)
+   {
+      MIXERCONTROLDETAILS details = {0};
+      MMRESULT r = 0;
+
+      if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      details.cbStruct = sizeof(details);
+      details.dwControlID = controls[idx].control;
+      details.cChannels = n;
+      details.cMultipleItems = controls[idx].multiple;
+      details.cbDetails = sizeof(*value);
+      details.paDetails = (void*)value;
+      r = mixerGetControlDetails(
+         (HMIXEROBJ)mixer,
+         &details,
+         MIXER_GETCONTROLDETAILSF_VALUE | MIXER_OBJECTF_HMIXER
+      );
+      if (r)
+         ERROR_SET(err, winmm, r);
+   exit:;
+   }
+
+   int
+   GetValue(int idx, value_t *value, int n, error *err)
+   {
+      MIXERCONTROLDETAILS details = {0};
+      MMRESULT r = 0;
+
+      if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      details.cbStruct = sizeof(details);
+      details.dwControlID = controls[idx].control;
+      details.cChannels = n;
+      details.cMultipleItems = controls[idx].multiple;
+      details.cbDetails = sizeof(*value);
+      details.paDetails = value;
+      r = mixerGetControlDetails(
+         (HMIXEROBJ)mixer,
+         &details,
+         MIXER_GETCONTROLDETAILSF_VALUE | MIXER_OBJECTF_HMIXER
+      );
+      if (r)
+         ERROR_SET(err, winmm, r);
+      return details.cChannels;
+   exit:
+      return 0;
+   }
+};
+
 struct WinMmEnumerator : public DeviceEnumerator
 {
    void
-   CreateDevice(UINT_PTR deviceId, Device **out, error *err)
+   CreateDevice(UINT_PTR deviceId, WinMmDev **out, error *err)
    {
       MMRESULT res = 0;
       WAVEOUTCAPS caps = {0};
-      Pointer<Device> dev;
+      Pointer<WinMmDev> dev;
       res = waveOutGetDevCaps(deviceId, &caps, sizeof(caps));
       if (res) ERROR_SET(err, winmm, res);
       try
@@ -286,6 +532,14 @@ struct WinMmEnumerator : public DeviceEnumerator
       *out = dev.Detach();
    }
 
+   void
+   CreateDevice(UINT_PTR deviceId, Device **out, error *err)
+   {
+      WinMmDev *dev = nullptr;
+      CreateDevice(deviceId, &dev, err);
+      *out = dev;
+   }
+
 public:
 
    int
@@ -293,19 +547,68 @@ public:
    {
       return waveOutGetNumDevs();
    }
-   
+
    void
    GetDevice(int i, Device **out, error *err)
    {
       CreateDevice(i, out, err);
    }
-   
+
    void
    GetDefaultDevice(Device **out, error *err)
    {
       CreateDevice(WAVE_MAPPER, out, err);
    }
-}; 
+
+   void
+   GetDefaultMixer(struct Mixer **out, error *err)
+   {
+      Pointer<WinMmMixer> r;
+      Pointer<WinMmDev> dev;
+      Metadata md;
+
+      // Need to create a handle for WAVE_MAPPER.
+      //
+      CreateDevice(WAVE_MAPPER, dev.GetAddressOf(), err);
+      ERROR_CHECK(err);
+      md.Channels = 2;
+      md.Format = PcmShort;
+      md.SampleRate = 44100;
+      dev->ProbeSampleRate(md.SampleRate, md.SampleRate, err);
+      ERROR_CHECK(err);
+      md.SamplesPerFrame = 20 * md.SampleRate / 1000;
+      dev->SetMetadata(md, err);
+      ERROR_CHECK(err);
+
+      New(r, err);
+      ERROR_CHECK(err);
+
+      r->Initialize((UINT)dev->GetHandle(), MIXER_OBJECTF_HWAVEOUT, err);
+      ERROR_CHECK(err);
+
+   exit:
+      if (ERROR_FAILED(err))
+         r = nullptr;
+      *out = r.Detach();
+   }
+
+   void
+   GetMixer(int i, struct Mixer **out, error *err)
+   {
+      Pointer<WinMmMixer> r;
+
+      New(r, err);
+      ERROR_CHECK(err);
+
+      r->Initialize(i, MIXER_OBJECTF_WAVEOUT, err);
+      ERROR_CHECK(err);
+
+   exit:
+      if (ERROR_FAILED(err))
+         r = nullptr;
+      *out = r.Detach();
+   }
+};
 
 void
 error_set_winmm(error *err, MMRESULT res)
