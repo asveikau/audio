@@ -193,7 +193,7 @@ protected:
       pcm[] =
       {
          "audio",
-#if !defined(__sun__)
+#if defined(__NetBSD__)
          "sound",
 #endif
          nullptr,
