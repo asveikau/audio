@@ -99,6 +99,8 @@ private:
    GetMixerFromEnvironment(error *err)
    {
       const char *env = getenv("MIXERDEV");
+      if (!env)
+         env = getenv("MIXERDEVICE");
       if (env)
          return MakeNonDestructableString(env);
       auto dev = GetPcmFromEnvironment();
@@ -265,6 +267,8 @@ private:
 
       Open(filename, fd, out, err);
       ERROR_CHECK(err);
+      if (!*out)
+         goto exit;
 
       fd = -1;
    exit:
@@ -290,6 +294,8 @@ private:
 
       Open(filename, fd, out, err);
       ERROR_CHECK(err);
+      if (!*out)
+         goto exit;
 
       fd = -1;
    exit:
