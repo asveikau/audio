@@ -12,6 +12,7 @@
 #include <mmdeviceapi.h>
 #include <AudioClient.h>
 #include <AudioSessionTypes.h>
+#include <EndpointVolume.h>
 
 #include <common/misc.h>
 #include <common/logger.h>
@@ -284,6 +285,151 @@ retry:
    }
 };
 
+class WasapiMixer : public Mixer
+{
+   ComPtr<IMMDevice> dev;
+   ComPtr<IAudioEndpointVolume> volume;
+   ComPtr<IUnknown> defaultDevMonitor;
+public:
+
+   WasapiMixer(IMMDevice *dev_)
+      : dev(dev_) {}
+
+   void
+   Initialize(IMMDeviceEnumerator *devEnum_, bool isDefault, error *err)
+   {
+      if (isDefault)
+      {
+         ComPtr<IMMDeviceEnumerator> devEnum = devEnum_;
+
+         CreateDefaultDeviceMonitor(
+            devEnum.Get(),
+            [this, devEnum] (EDataFlow flow, ERole role, PCWSTR devName, error *err) -> void
+            {
+               if (flow == eRender && role == eMultimedia)
+               {
+                  HRESULT hr = S_OK;
+
+                  hr = devEnum->GetDefaultAudioEndpoint(
+                     eRender,
+                     eMultimedia,
+                     dev.ReleaseAndGetAddressOf()
+                  );
+                  if (FAILED(hr))
+                     ERROR_SET(err, win32, hr);
+                  Initialize(devEnum.Get(), false, err);
+                  ERROR_CHECK(err);
+               }
+            exit:;
+            },
+            defaultDevMonitor.GetAddressOf(),
+            err
+         );
+      }
+
+      Activate(err);
+      ERROR_CHECK(err);
+   exit:;
+   }
+
+   void
+   Activate(error *err)
+   {
+      HRESULT hr = S_OK;
+
+      hr = dev->Activate(
+         __uuidof(IAudioEndpointVolume),
+         CLSCTX_ALL,
+         nullptr,
+         (PVOID*)volume.ReleaseAndGetAddressOf()
+      );
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+   exit:;
+   }
+
+   int
+   GetValueCount(error *err)
+   {
+      return 1;
+   }
+
+   const char *
+   DescribeValue(int idx, error *err)
+   {
+      switch (idx)
+      {
+      case 0:  return "vol";
+      default: ERROR_SET(err, unknown, "Invalid index");
+      }
+
+   exit:
+      return nullptr;
+   }
+
+   int
+   GetChannels(int idx, error *err)
+   {
+      UINT r = 0;
+      HRESULT hr = S_OK;
+
+      DescribeValue(idx, err);
+      ERROR_CHECK(err);
+
+      if (volume.Get() == nullptr)
+         ERROR_SET(err, win32, E_POINTER);
+
+      hr = volume->GetChannelCount(&r);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
+   exit:
+      return r;
+   }
+
+   void
+   SetValue(int idx, const float *value, int n, error *err)
+   {
+      DescribeValue(idx, err);
+      ERROR_CHECK(err);
+
+      if (volume.Get() == nullptr)
+         ERROR_SET(err, win32, E_POINTER);
+
+      for (int i=0; i<n; ++i)
+      {
+         HRESULT hr = volume->SetChannelVolumeLevelScalar(i, value[i], nullptr);
+         if (ERROR_FAILED(err))
+            ERROR_SET(err, win32, hr);
+      }
+
+   exit:;
+   }
+
+   int
+   GetValue(int idx, float *value, int n, error *err)
+   {
+      int r = 0;
+
+      DescribeValue(idx, err);
+      ERROR_CHECK(err);
+
+      if (volume.Get() == nullptr)
+         ERROR_SET(err, win32, E_POINTER);
+
+      for (int i=0; i<n; ++i)
+      {
+         HRESULT hr = volume->GetChannelVolumeLevelScalar(i, &value[i]);
+         if (ERROR_FAILED(err))
+            ERROR_SET(err, win32, hr);
+      }
+      r = n;
+
+   exit:
+      return r;
+   }
+};
+
 class WasapiEnumerator : public DeviceEnumerator
 {
    ComPtr<IMMDeviceEnumerator> devEnum;
@@ -330,9 +476,41 @@ public:
    exit:
       return count;
    }
+
+   #define WrapFn(FN, TYPE) \
+      [this] (IMMDevice *a, bool b, TYPE **c, error *d) -> void { FN(a,b,c,d); }
    
    void
    GetDevice(int i, Device **out, error *err)
+   {
+      GetDevice(i, WrapFn(CreateDevice, Device), out, err);
+   }
+
+   void
+   GetDefaultDevice(Device **out, error *err)
+   {
+      GetDefaultDevice(WrapFn(CreateDevice, Device), out, err);
+   }
+
+   void
+   GetMixer(int i, struct Mixer **out, error *err)
+   {
+      GetDevice(i, WrapFn(CreateDevice, struct Mixer), out, err);
+   }
+
+   void
+   GetDefaultMixer(struct Mixer **out, error *err)
+   {
+      GetDefaultDevice(WrapFn(CreateDevice, struct Mixer), out, err);
+   }
+
+   #undef WrapFn
+
+private:
+
+   template<typename T, typename Creator>
+   void
+   GetDevice(int i, const Creator &creator, T **out, error *err)
    {
       HRESULT hr = S_OK;
       ComPtr<IMMDevice> dev;
@@ -346,13 +524,14 @@ public:
       hr = devs->Item(i, dev.GetAddressOf()); 
       if (FAILED(hr)) ERROR_SET(err, win32, hr);
    
-      CreateDevice(dev.Get(), false, out, err);
+      creator(dev.Get(), false, out, err);
       ERROR_CHECK(err);
    exit:;
    }
-   
+
+   template<typename T, typename Creator>
    void
-   GetDefaultDevice(Device **out, error *err)
+   GetDefaultDevice(const Creator &creator, T **out, error *err)
    {
       HRESULT hr = S_OK;
       ComPtr<IMMDevice> dev;
@@ -364,18 +543,37 @@ public:
       );
       if (FAILED(hr)) ERROR_SET(err, win32, hr);
    
-      CreateDevice(dev.Get(), true, out, err);
+      creator(dev.Get(), true, out, err);
       ERROR_CHECK(err);
    exit:;
    }
-   
-private:
-   void CreateDevice(IMMDevice *dev, bool isDefault, Device **out, error *err)
+
+   void
+   CreateDevice(IMMDevice *dev, bool isDefault, Device **out, error *err)
    {
       Pointer<WasapiDev> r;
       try
       {
          *r.GetAddressOf() = new WasapiDev(dev);
+      }
+      catch (std::bad_alloc)
+      {
+         ERROR_SET(err, nomem);
+      }
+      r->Initialize(devEnum.Get(), isDefault, err);
+      ERROR_CHECK(err);
+   exit:
+      if (ERROR_FAILED(err)) r = nullptr;
+      *out = r.Detach();
+   }
+
+   void
+   CreateDevice(IMMDevice *dev, bool isDefault, struct Mixer **out, error *err)
+   {
+      Pointer<WasapiMixer> r;
+      try
+      {
+         *r.GetAddressOf() = new WasapiMixer(dev);
       }
       catch (std::bad_alloc)
       {
