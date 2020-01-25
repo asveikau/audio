@@ -20,7 +20,7 @@
 #include <AudioDevice.h>
 
 #include <string.h>
- 
+
 #ifndef AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
 #define AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM      0x80000000U
 #endif
@@ -64,7 +64,8 @@ class WasapiDev : public Device
    ComPtr<IUnknown> defaultDevMonitor;
    bool deviceChanged;
 
-   void CleanupOld(void)
+   void
+   CleanupOld(void)
    {
       if (client.Get())
       {
@@ -89,7 +90,8 @@ public:
       free(devName);
    }
 
-   void Initialize(IMMDeviceEnumerator *devEnum, bool isDefault, error *err)
+   void
+   Initialize(IMMDeviceEnumerator *devEnum, bool isDefault, error *err)
    {
       if (isDefault)
       {
@@ -115,7 +117,8 @@ public:
    exit:;
    }
 
-   void Activate(error *err)
+   void
+   Activate(error *err)
    {
       HRESULT hr = S_OK;
 
@@ -125,12 +128,14 @@ public:
          nullptr,
          (PVOID*)client.GetAddressOf()
       );
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
    exit:;
    }
 
-   void SetMetadata(const Metadata &metadata, error *err)
+   void
+   SetMetadata(const Metadata &metadata, error *err)
    {
       HRESULT hr = S_OK;
       WAVEFORMATEX fmt;
@@ -166,19 +171,23 @@ retry:
          error_clear(err);
          goto retry;
       }
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       hr = client->SetEventHandle(event);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       hr = client->GetService(IID_PPV_ARGS(renderClient.GetAddressOf()));
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
    exit:
       ;
    }
 
-   void Write(const void *buf, int len, error *err)
+   void
+   Write(const void *buf, int len, error *err)
    {
       HRESULT hr = S_OK;
       PBYTE driverBuffer = nullptr;
@@ -190,10 +199,12 @@ retry:
 
    retry:
       hr = client->GetBufferSize(&bufferSize);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       hr = client->GetCurrentPadding(&padding);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       bufferSize -= padding;
 
@@ -201,19 +212,22 @@ retry:
       m = MIN(n, bufferSize);
 
       hr = renderClient->GetBuffer(m, &driverBuffer);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       memcpy(driverBuffer, buf, m * blockAlign);
       buf = ((const char*)buf) + m * blockAlign;
       len -= m * blockAlign;
 
       renderClient->ReleaseBuffer(m, 0);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       if (!started)
       {
          hr = client->Start();
-         if (FAILED(hr)) ERROR_SET(err, win32, hr);
+         if (FAILED(hr))
+            ERROR_SET(err, win32, hr);
          started = true;
       }
 
@@ -222,8 +236,7 @@ retry:
          WaitForSingleObject(event, INFINITE);
          goto retry;
       }
-   exit: 
-      ;
+   exit:;
    }
 
    const char *
@@ -233,25 +246,28 @@ retry:
       ComPtr<IPropertyStore> props;
       PROPVARIANT prop;
       PropVariantInit(&prop);
-   
+
       if (devName)
          goto exit;
-   
+
       hr = dev->OpenPropertyStore(STGM_READ, props.GetAddressOf());
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
-   
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
       hr = props->GetValue(*(PROPERTYKEY*)&DEVPKEY_Device_FriendlyName, &prop);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
-   
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
       devName = ConvertToPstr(prop.pwszVal, err);
       ERROR_CHECK(err);
-   
+
    exit:
       PropVariantClear(&prop);
       return devName;
    }
 
-   void ProbeSampleRate(int rate, int &suggested, error *err)
+   void
+   ProbeSampleRate(int rate, int &suggested, error *err)
    {
       HRESULT hr = S_OK;
       Metadata md;
@@ -273,9 +289,10 @@ retry:
       hr = client->IsFormatSupported(
          AUDCLNT_SHAREMODE_SHARED,
          &inFmt,
-         &outFmt 
+         &outFmt
       );
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
 
       if (outFmt)
          suggested = outFmt->nSamplesPerSec;
@@ -440,26 +457,28 @@ public:
    Initialize(error *err)
    {
       HRESULT hr = S_OK;
-   
+
       hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
-   
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
       hr = CoCreateInstance(
          __uuidof(MMDeviceEnumerator),
          nullptr,
          CLSCTX_INPROC_SERVER,
          IID_PPV_ARGS(devEnum.GetAddressOf())
       );
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
    exit:;
    }
-   
+
    int
    GetDeviceCount(error *err)
    {
       HRESULT hr = S_OK;
       UINT count = 0;
-   
+
       if (!devs.Get())
       {
          hr = devEnum->EnumAudioEndpoints(
@@ -467,19 +486,21 @@ public:
             DEVICE_STATE_ACTIVE,
             devs.GetAddressOf()
          );
-         if (FAILED(hr)) ERROR_SET(err, win32, hr);
+         if (FAILED(hr))
+            ERROR_SET(err, win32, hr);
       }
-   
+
       hr = devs->GetCount(&count);
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
-   
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
    exit:
       return count;
    }
 
    #define WrapFn(FN, TYPE) \
       [this] (IMMDevice *a, bool b, TYPE **c, error *d) -> void { FN(a,b,c,d); }
-   
+
    void
    GetDevice(int i, Device **out, error *err)
    {
@@ -514,16 +535,17 @@ private:
    {
       HRESULT hr = S_OK;
       ComPtr<IMMDevice> dev;
-   
+
       auto count = GetDeviceCount(err);
       ERROR_CHECK(err);
-   
+
       if (i < 0 || i >= count)
          ERROR_SET(err, win32, E_INVALIDARG);
-   
-      hr = devs->Item(i, dev.GetAddressOf()); 
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
-   
+
+      hr = devs->Item(i, dev.GetAddressOf());
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
       creator(dev.Get(), false, out, err);
       ERROR_CHECK(err);
    exit:;
@@ -535,14 +557,15 @@ private:
    {
       HRESULT hr = S_OK;
       ComPtr<IMMDevice> dev;
-   
+
       hr = devEnum->GetDefaultAudioEndpoint(
          eRender,
          eMultimedia,
          dev.GetAddressOf()
       );
-      if (FAILED(hr)) ERROR_SET(err, win32, hr);
-   
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
       creator(dev.Get(), true, out, err);
       ERROR_CHECK(err);
    exit:;
@@ -585,7 +608,7 @@ private:
       if (ERROR_FAILED(err)) r = nullptr;
       *out = r.Detach();
    }
-}; 
+};
 
 struct DefaultDeviceMonitor : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IMMNotificationClient>
 {
@@ -596,7 +619,7 @@ struct DefaultDeviceMonitor : public RuntimeClass<RuntimeClassFlags<ClassicCom>,
       EDataFlow flow,
       ERole     role,
       PCWSTR    name
-   ) 
+   )
    {
       error err;
       callback(flow, role, name, &err);
@@ -619,7 +642,7 @@ struct DeviceMonitorRaii : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IU
       if (devEnum.Get() && notification.Get())
         devEnum->UnregisterEndpointNotificationCallback(notification.Get());
    }
-}; 
+};
 
 void
 CreateDefaultDeviceMonitor(
@@ -634,15 +657,18 @@ CreateDefaultDeviceMonitor(
    ComPtr<DeviceMonitorRaii> raii;
 
    hr = MakeAndInitialize<DefaultDeviceMonitor>(mon.GetAddressOf());
-   if (FAILED(hr)) ERROR_SET(err, win32, hr);
+   if (FAILED(hr))
+      ERROR_SET(err, win32, hr);
 
    mon->callback = callback;
 
    hr = MakeAndInitialize<DeviceMonitorRaii>(raii.GetAddressOf());
-   if (FAILED(hr)) ERROR_SET(err, win32, hr);
+   if (FAILED(hr))
+      ERROR_SET(err, win32, hr);
 
    hr = devEnum->RegisterEndpointNotificationCallback(mon.Get());
-   if (FAILED(hr)) ERROR_SET(err, win32, hr);
+   if (FAILED(hr))
+      ERROR_SET(err, win32, hr);
 
    raii->devEnum = devEnum;
    raii->notification = mon;
