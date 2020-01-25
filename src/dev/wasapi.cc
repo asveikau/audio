@@ -101,7 +101,7 @@ public:
 
          CreateDefaultDeviceMonitor(
             devEnum,
-            [weak] (EDataFlow flow, ERole role, PCWSTR devName, error *err) mutable -> void
+            [weak] (EDataFlow flow, ERole role, PCWSTR devName, error *err) -> void
             {
                auto rc = weak.Lock();
                if (rc.Get() && flow == eRender && role == eMultimedia)
@@ -330,7 +330,7 @@ public:
 
          CreateDefaultDeviceMonitor(
             devEnum.Get(),
-            [devEnum, weak] (EDataFlow flow, ERole role, PCWSTR devName, error *err) mutable -> void
+            [devEnum, weak] (EDataFlow flow, ERole role, PCWSTR devName, error *err) -> void
             {
                auto rc = weak.Lock();
                if (!rc.Get())
