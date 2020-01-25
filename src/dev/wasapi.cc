@@ -95,12 +95,17 @@ public:
    {
       if (isDefault)
       {
+         Pointer<WasapiDev> rc = this;
+         auto weak = rc.MakeWeak(err);
+         ERROR_CHECK(err);
+
          CreateDefaultDeviceMonitor(
             devEnum,
-            [this] (EDataFlow flow, ERole role, PCWSTR devName, error *err) -> void
+            [weak] (EDataFlow flow, ERole role, PCWSTR devName, error *err) mutable -> void
             {
-               if (flow == eRender && role == eMultimedia)
-                  deviceChanged = true;
+               auto rc = weak.Lock();
+               if (rc.Get() && flow == eRender && role == eMultimedia)
+                  rc->deviceChanged = true;
             },
             defaultDevMonitor.ReleaseAndGetAddressOf(),
             err
@@ -317,12 +322,19 @@ public:
    {
       if (isDefault)
       {
+         Pointer<WasapiMixer> rc = this;
+         auto weak = rc.MakeWeak(err);
+         ERROR_CHECK(err);
+
          ComPtr<IMMDeviceEnumerator> devEnum = devEnum_;
 
          CreateDefaultDeviceMonitor(
             devEnum.Get(),
-            [this, devEnum] (EDataFlow flow, ERole role, PCWSTR devName, error *err) -> void
+            [devEnum, weak] (EDataFlow flow, ERole role, PCWSTR devName, error *err) mutable -> void
             {
+               auto rc = weak.Lock();
+               if (!rc.Get())
+                  return;
                if (flow == eRender && role == eMultimedia)
                {
                   HRESULT hr = S_OK;
@@ -330,11 +342,11 @@ public:
                   hr = devEnum->GetDefaultAudioEndpoint(
                      eRender,
                      eMultimedia,
-                     dev.ReleaseAndGetAddressOf()
+                     rc->dev.ReleaseAndGetAddressOf()
                   );
                   if (FAILED(hr))
                      ERROR_SET(err, win32, hr);
-                  Initialize(devEnum.Get(), false, err);
+                  rc->Initialize(devEnum.Get(), false, err);
                   ERROR_CHECK(err);
                }
             exit:;
