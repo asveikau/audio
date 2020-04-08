@@ -191,11 +191,11 @@ public:
    exit:;
    }
 
-   int
-   Read(void *buf, int len, uint64_t pos, error *err)
+   size_t
+   Read(void *buf, size_t len, uint64_t pos, error *err)
    {
       int idx = 0;
-      int r = 0;
+      size_t r = 0;
 
       for (auto off : removalOffsets)
       {
@@ -212,8 +212,8 @@ public:
 
       while (len)
       {
-         int len2 = MIN(len, idx < removalOffsets.size() ? removalOffsets[idx] - pos : len);
-         int r2 = 0;
+         size_t len2 = MIN(len, idx < removalOffsets.size() ? removalOffsets[idx] - pos : len);
+         size_t r2 = 0;
 
          baseStream->Seek(offset + pos, SEEK_SET, err);
          ERROR_CHECK(err);

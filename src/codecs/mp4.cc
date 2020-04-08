@@ -49,12 +49,12 @@ void
 Read(
    Stream *file,
    void *buf,
-   int len,
+   size_t len,
    uint64_t *limit,
    error *err
 )
 {
-   int r = 0;
+   size_t r = 0;
 
    if (limit && *limit < len)
       ERROR_SET(err, unknown, "Exceeded length");
@@ -1469,9 +1469,9 @@ public:
       }
    }
 
-   int Read(void *buf, int len, error *err)
+   size_t Read(void *buf, size_t len, error *err)
    {
-      int r = 0;
+      size_t r = 0;
       uint32_t currentPacketLen;
       uint32_t offset;
       uint64_t chunkOffset = 0;
@@ -1484,8 +1484,8 @@ public:
       if (!currentPacket &&
           pos < fileHeaderLen)
       {
-         int leftInHeader = fileHeaderLen - pos;
-         int n = MIN(len, leftInHeader);
+         size_t leftInHeader = fileHeaderLen - pos;
+         size_t n = MIN(len, leftInHeader);
          if (n)
          {
             memcpy(buf, (const char*)fileHeader + pos, n);
@@ -1505,8 +1505,8 @@ public:
       offset = pos - PacketStarts[currentPacket];
       if (packetHeaderLen && offset < packetHeaderLen)
       {
-         int headerRemaining = packetHeaderLen - offset;
-         int n = MIN(headerRemaining, len);
+         size_t headerRemaining = packetHeaderLen - offset;
+         size_t n = MIN(headerRemaining, len);
 
          GetPacketHeader(currentPacketLen, &packetHeader, &packetHeaderLen, err);
          ERROR_CHECK(err);
@@ -1525,14 +1525,14 @@ public:
 
       for (int i=0; i<samplesWithinChunk; ++i)
       {
-         int n = track->GetSampleSize(currentPacket - i - 1, err);
+         auto n = track->GetSampleSize(currentPacket - i - 1, err);
          ERROR_CHECK(err);
          chunkOffset += n;
       }
 
       {
-         int n = track->GetSampleSize(currentPacket, err);
-         int r2 = 0;
+         auto n = track->GetSampleSize(currentPacket, err);
+         size_t r2 = 0;
          ERROR_CHECK(err);
          offset -= packetHeaderLen;
          chunkOffset += offset;
