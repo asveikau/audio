@@ -148,7 +148,7 @@ public:
       while (length)
       {
          unsigned char buf[4096];
-         int r = 0;
+         size_t r = 0;
 
          r = file->Read(buf, MIN(sizeof(buf), length), err);
          ERROR_CHECK(err);
@@ -158,7 +158,7 @@ public:
 
          length -= r;
 
-         for (int i=0; i<r; ++i)
+         for (size_t i=0; i<r; ++i)
          {
             auto b = buf[i];
             if (!saw_1st)
@@ -728,7 +728,7 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
       {
          if (!frameSize)
             ERROR_SET(err, unknown, "Short read");
-         int r = file->Read(&encoding, 1, err);
+         auto r = file->Read(&encoding, 1, err);
          ERROR_CHECK(err);
          if (r != 1)
             ERROR_SET(err, unknown, "Short read");
@@ -834,7 +834,7 @@ void
 audio::id3::Parser::TryParse(common::Stream *file, MetadataReceiver *recv, error *err)
 {
    FrameHeader frameHeader;
-   int r = 0;
+   size_t r = 0;
    uint32_t remaining = ParseSyncSafe(header.Size);
    bool globalUnsync = false;
 

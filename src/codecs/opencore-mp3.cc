@@ -313,7 +313,7 @@ private:
    void ReadHeader(void *buf, error *err)
    {
       unsigned char header[4];
-      int r = 0;
+      size_t r = 0;
       int channels = lastHeader.Channels;
       int sampleRate = lastHeader.SampleRate;
       int samplesPerFrame = lastHeader.SamplesPerFrame;
@@ -1019,7 +1019,7 @@ struct Mp3Codec : public Codec
                   ERROR_CHECK(err);
                   file->Seek(firstBufferSize, SEEK_CUR, err);
                   ERROR_CHECK(err);
-                  int r = file->Read(onHeap + firstBufferSize, offsetToNext+4-firstBufferSize, err);
+                  auto r = file->Read(onHeap + firstBufferSize, offsetToNext+4-firstBufferSize, err);
                   ERROR_CHECK(err);
                   if (r != offsetToNext+4-firstBufferSize)
                      ERROR_SET(err, unknown, "short read");

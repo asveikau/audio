@@ -84,7 +84,7 @@ public:
       Header dataMagic;
       int nAttempts = 10;
 
-      int r = stream->Read(&header, sizeof(header), err);
+      auto r = stream->Read(&header, sizeof(header), err);
       ERROR_CHECK(err);
       if (r < sizeof(header))
          ERROR_SET(err, unknown, "WAV header too short");
@@ -136,12 +136,11 @@ public:
 
    int Read(void *buf, int len, error *err)
    {
-      int r = stream->Read(buf, len, err);
+      auto r = stream->Read(buf, len, err);
       if (!ERROR_FAILED(err))
       {
          uint16_t *p = (uint16_t*)buf;
-         int n = r/2;
-         for (; n--; ++p)
+         for (auto n = r/2; n--; ++p)
             *p = read16(p);
       }
       return r;

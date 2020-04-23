@@ -255,7 +255,7 @@ private:
    void ReadHeader(void *buf, error *err)
    {
       unsigned char header[HEADER_SIZE];
-      int r = 0;
+      size_t r = 0;
       int channels = lastHeader.Channels;
       int sampleRate = lastHeader.SampleRate;
       int samplesPerFrame = lastHeader.SamplesPerFrame;

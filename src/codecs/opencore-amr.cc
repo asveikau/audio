@@ -49,7 +49,7 @@ class AmrSource : public Source, public SeekBase
    ReadFrame(error *err)
    {
       int cmr = 0;
-      int r = stream->Read(readBuffer.data(), 1, err);
+      auto r = stream->Read(readBuffer.data(), 1, err);
       ERROR_CHECK(err);
       if (!r)
          goto got_eof;
