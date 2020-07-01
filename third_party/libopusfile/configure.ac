@@ -34,7 +34,7 @@ dnl - interfaces added -> increment AGE
 dnl - interfaces removed -> AGE = 0
 
 OP_LT_CURRENT=4
-OP_LT_REVISION=4
+OP_LT_REVISION=5
 OP_LT_AGE=4
 
 AC_SUBST(OP_LT_CURRENT)
@@ -58,7 +58,7 @@ case $host in
     host_mingw=true
     ;;
 esac
-AM_CONDITIONAL(OP_WIN32, test "$host_mingw" = "true")
+AM_CONDITIONAL(OP_WIN32, [test "$host_mingw" = "true"])
 
 AC_ARG_ENABLE([assertions],
   AS_HELP_STRING([--enable-assertions], [Enable assertions in code]),,
@@ -72,21 +72,42 @@ AC_ARG_ENABLE([http],
   AS_HELP_STRING([--disable-http], [Disable HTTP support]),,
   enable_http=yes)
 
-AM_COND_IF(OP_WIN32,
-  AS_IF([test "$enable_http" != "no"],
-    AC_CHECK_HEADER([winsock2.h],,
+AM_COND_IF(OP_WIN32, [
+  AS_IF([test "$enable_http" != "no"], [
+    AC_CHECK_HEADER([winsock2.h],, [
       AC_MSG_WARN([HTTP support requires a Winsock socket library.])
       enable_http=no
-    )
-  ),
-  AS_IF([test "$enable_http" != "no"],
-    AC_CHECK_HEADER([sys/socket.h],,
+    ])
+  ])
+], [
+  AS_IF([test "$enable_http" != "no"], [
+    AC_CHECK_HEADER([sys/socket.h],, [
       AC_MSG_WARN([HTTP support requires a POSIX socket library.])
       enable_http=no
-    )
-  )
-)
-AC_SEARCH_LIBS(ftime, [compat], , [enable_http=no])
+    ])
+  ])
+])
+
+# HTTP support requires either clock_gettime or ftime.  clock_gettime is
+# used only if time.h defines CLOCK_REALTIME and the function is available
+# in the standard library; on platforms such as glibc < 2.17 where -lrt
+# or another library would be required, ftime will be used.
+AS_IF([test "$enable_http" != "no"], [
+  AC_MSG_CHECKING([for clock_gettime])
+  AC_LINK_IFELSE([
+    AC_LANG_PROGRAM([[#include <time.h>]], [[
+      struct timespec ts;
+      return clock_gettime(CLOCK_REALTIME, &ts);
+    ]])
+  ], [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([OP_HAVE_CLOCK_GETTIME], [1],
+      [Enable use of clock_gettime function])
+  ], [
+    AC_MSG_RESULT([no])
+    AC_SEARCH_LIBS(ftime, [compat], , [enable_http=no])
+  ])
+])
 
 m4_ifndef([PKG_PROG_PKG_CONFIG],
   [m4_fatal([Could not locate the pkg-config autoconf macros.
