@@ -114,16 +114,15 @@ struct DeviceEnumerator : public RefCountable
 
    // The mixer API is new, so may be unsupported in some drivers.
    //
-   virtual void GetMixer(int idx, Mixer **output, error *err) { NotImpl(err); }
-   virtual void GetDefaultMixer(Mixer **output, error *err) { NotImpl(err); }
-private:
-   void NotImpl(error *err)
+   virtual void GetMixer(int idx, Mixer **output, error *err)
    {
-#if defined(_WINDOWS)
-      error_set_win32(err, E_NOTIMPL);
-#else
-      error_set_errno(err, ENOSYS);
-#endif
+      ERROR_SET(err, notimpl);
+   exit:;
+   }
+   virtual void GetDefaultMixer(Mixer **output, error *err)
+   {
+      ERROR_SET(err, notimpl);
+   exit:;
    }
 };
 
