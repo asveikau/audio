@@ -176,7 +176,7 @@ public:
                   {
                      removalOffsets.push_back(ch);
                   }
-                  catch (std::bad_alloc)
+                  catch (const std::bad_alloc&)
                   {
                      ERROR_SET(err, nomem);
                   }
@@ -323,7 +323,7 @@ Transcode(Parse parse, std::vector<char> &buf, error *err)
       {
          buf.insert(buf.end(), utf8buf, utf8buf + r);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -395,7 +395,7 @@ GetStringParser(
          {
             r.resize(frameSize);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -444,7 +444,7 @@ GetStringParser(
          {
             vec.push_back(0);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             error_set_nomem(err);
          }
@@ -606,7 +606,7 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
                            str = p;
                      }
                   }
-                  catch (std::bad_alloc)
+                  catch (const std::bad_alloc&)
                   {
                      ERROR_SET(err, nomem);
                   }
@@ -799,7 +799,7 @@ audio::id3::Parser::OnFrame(FrameHeader *header, uint32_t frameSize, bool unsync
                            ERROR_SET(err, unknown, "Short read");
                         url = buf.data();
                      }
-                     catch (std::bad_alloc)
+                     catch (const std::bad_alloc&)
                      {
                         ERROR_SET(err, nomem);
                      }

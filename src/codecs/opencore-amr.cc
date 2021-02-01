@@ -354,7 +354,7 @@ struct AmrCodec : public Codec
             *r.GetAddressOf() = new AmrWbSource(file, params.Duration);
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

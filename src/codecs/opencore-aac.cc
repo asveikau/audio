@@ -441,7 +441,7 @@ struct AacCodec : public Codec
       {
          *r.GetAddressOf() = new AacSource(header, params.Duration);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

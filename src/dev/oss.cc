@@ -104,7 +104,7 @@ public:
             }
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -369,7 +369,7 @@ class OssEnumerator : public DevNodeEnumerator
       {
          *out = new OssDev(filename, fd);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -383,7 +383,7 @@ class OssEnumerator : public DevNodeEnumerator
       {
          *out = new OssMixer(filename, fd);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

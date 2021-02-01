@@ -82,7 +82,7 @@ public:
             this->recv = *recv;
             recv = &this->recv;
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -222,7 +222,7 @@ public:
             }
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -409,7 +409,7 @@ private:
                lengths.push_back(comment.length);
             }
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(&err, nomem);
          }
@@ -462,7 +462,7 @@ void audio::CreateFlacSource(
    {
       *r.GetAddressOf() = new FlacSource(file, isOgg);
    }
-   catch (std::bad_alloc)
+   catch (const std::bad_alloc&)
    {
       ERROR_SET(err, nomem);
    }

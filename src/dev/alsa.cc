@@ -101,7 +101,7 @@ public:
             if (r)
                ERROR_SET(err, alsa, r);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -225,7 +225,7 @@ public:
                spec.rates.push_back(*p);
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -283,7 +283,7 @@ public:
             selemIds.push_back(std::move(p));
             elems.push_back(e);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }

@@ -1035,7 +1035,7 @@ ParseMetadataBox(
                         vec.resize(vec.size()-1);
                      str = std::string(vec.data(), vec.size());
                   }
-                  catch (std::bad_alloc)
+                  catch (const std::bad_alloc&)
                   {
                      ERROR_SET(err, nomem);
                   }
@@ -1221,7 +1221,7 @@ void ParseMp4File(
       }, err);
       ERROR_CHECK(err);
     }
-    catch (std::bad_alloc)
+    catch (const std::bad_alloc&)
     {
        ERROR_SET(err, nomem);
     }
@@ -1363,7 +1363,7 @@ public:
             ERROR_CHECK(err);
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -1586,7 +1586,7 @@ public:
       {
          ptr = std::make_shared<Mp4SeekTable>(this, track, fileHeaderLen, packetHeaderLen);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -1786,7 +1786,7 @@ CreateFromMicroCodec(const ParsedMp4File &mp4, int i, Stream *mp4Stream_, Create
          cfgFn(config, err);
          ERROR_CHECK(err);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -1937,7 +1937,7 @@ struct Mp4Codec : public Codec
                           0;
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

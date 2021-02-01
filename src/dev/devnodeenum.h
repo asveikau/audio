@@ -233,7 +233,7 @@ private:
 
          return possibleDefaultsPtr.data();
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -336,7 +336,7 @@ public:
             }
             str.push_back(0);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -447,7 +447,7 @@ private:
             }
             ERROR_CHECK(err);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }

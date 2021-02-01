@@ -252,7 +252,7 @@ audio::Player::NegotiateMetadata(error *err)
    {
       buffer = new char[newBufsz];
    }
-   catch (std::bad_alloc)
+   catch (const std::bad_alloc&)
    {
       ERROR_SET(err, nomem);
    }
@@ -306,7 +306,7 @@ retry:
       if (!visState->thread)
          visState->thread = new WorkerThread();
    }
-   catch (std::bad_alloc)
+   catch (const std::bad_alloc&)
    {
       pendingPacket.resize(0);
       return;
@@ -448,7 +448,7 @@ audio::Player::Step(error *err)
             {
                resampleBuffer.resize(desiredSize);
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                ERROR_SET(err, nomem);
             }

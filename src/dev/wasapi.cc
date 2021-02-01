@@ -591,7 +591,7 @@ private:
       {
          *r.GetAddressOf() = new WasapiDev(dev);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -610,7 +610,7 @@ private:
       {
          *r.GetAddressOf() = new WasapiMixer(dev);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

@@ -76,7 +76,7 @@ audio::SeekBase::GetDuration(error *err)
    {
       CapturePosition(&rollback, err);
    }
-   catch (std::bad_alloc)
+   catch (const std::bad_alloc&)
    {
       ERROR_SET(err, nomem);
    }

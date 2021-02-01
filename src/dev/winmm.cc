@@ -200,7 +200,7 @@ public:
       {
          devName = ConvertToPstr(descr.c_str(), err);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -251,7 +251,7 @@ public:
                spec.rates.push_back(*p);
          }
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -376,7 +376,7 @@ public:
             {
                this->controls.push_back(info);
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                ERROR_SET(err, nomem);
             }
@@ -524,7 +524,7 @@ struct WinMmEnumerator : public DeviceEnumerator
       {
          *dev.GetAddressOf() = new WinMmDev(deviceId, caps.szPname);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

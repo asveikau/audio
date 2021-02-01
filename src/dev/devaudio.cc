@@ -210,7 +210,7 @@ public:
          {
             devinfo.push_back(info);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -232,7 +232,7 @@ public:
          {
             rawFields.push_back(f);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -259,7 +259,7 @@ public:
                   fields.push_back(rawFields[j]);
                }
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                ERROR_SET(err, nomem);
             }
@@ -277,7 +277,7 @@ public:
                str += fields[i].name;
                fields[i].setName(str.c_str());
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                ERROR_SET(err, nomem);
             }
@@ -508,7 +508,7 @@ protected:
       {
          *out = new DevAudioDev(fd);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }
@@ -548,7 +548,7 @@ protected:
          }
 #endif
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

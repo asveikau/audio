@@ -79,7 +79,7 @@ public:
          {
             readBuffer.resize(sz);
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -251,7 +251,7 @@ audio::AudioSourceFromMicroCodec(
    {
       *r.GetAddressOf() = new UCSource(codec, demuxer, duration);
    }
-   catch (std::bad_alloc)
+   catch (const std::bad_alloc&)
    {
       ERROR_SET(err, nomem);
    }

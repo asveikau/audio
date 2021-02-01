@@ -64,7 +64,7 @@ public:
             {
                new (&arr[size]) T();
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                for (auto i = 0; i<size; ++i)
                   arr[i].~T();
@@ -88,7 +88,7 @@ public:
             {
                ptr[i] = o.ptr[i];
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                delete [] ptr;
                ptr = nullptr;
@@ -104,7 +104,7 @@ public:
             {
                new (&arr[i]) T(o.arr[i]);
             }
-            catch (std::bad_alloc)
+            catch (const std::bad_alloc&)
             {
                for (auto i = 0; i<size; ++i)
                   arr[i].~T();
@@ -166,7 +166,7 @@ public:
 
          *this = std::move(other);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          error_set_nomem(err);
       }

@@ -817,7 +817,7 @@ struct VbrHeader
          {
             ptr = std::make_shared<XingSeekTable>(dataStart, duration, fileSize, buf + XingOffset(Toc));
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -837,7 +837,7 @@ struct VbrHeader
                len - sizeof(header)
             );
          }
-         catch (std::bad_alloc)
+         catch (const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }
@@ -1076,7 +1076,7 @@ struct Mp3Codec : public Codec
                      {
                         params.SeekTable = std::make_shared<CbrSeekTable>(file, header.Bitrate, params.Duration);
                      }
-                     catch (std::bad_alloc)
+                     catch (const std::bad_alloc&)
                      {
                         ERROR_SET(err, nomem);
                      }
@@ -1094,7 +1094,7 @@ struct Mp3Codec : public Codec
       {
          *r.GetAddressOf() = new Mp3Source(header, params.Duration);
       }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc&)
       {
          ERROR_SET(err, nomem);
       }

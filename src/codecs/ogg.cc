@@ -133,7 +133,7 @@ void audio::OnOggComments(
                         {
                            str = std::string(q, length);
                         }
-                        catch (std::bad_alloc)
+                        catch (const std::bad_alloc&)
                         {
                            error_set_nomem(err);
                         }

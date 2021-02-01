@@ -257,7 +257,7 @@ void audio::CreateVorbisSource(
    {
       *r.GetAddressOf() = new VorbisFile(file);
    }
-   catch (std::bad_alloc)
+   catch (const std::bad_alloc&)
    {
       ERROR_SET(err, nomem);
    }
