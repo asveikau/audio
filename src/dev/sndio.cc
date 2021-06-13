@@ -134,7 +134,7 @@ struct SndioDevice : public Device
    }
 };
 
-struct SndioMixer : public Mixer
+struct SndioMixer : public SoftMuteMixer
 {
    sioctl_hdl *mixer;
    std::vector<sioctl_desc> desc;

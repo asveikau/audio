@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2020 Andrew Sveikauskas
+ Copyright (C) 2017-2021 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -10,6 +10,7 @@
 #define audio_device_h
 
 #include "AudioSource.h"
+#include <map>
 #include <vector>
 
 namespace audio {
@@ -82,6 +83,34 @@ struct Device : public RefCountable
    virtual void ProbeSampleRate(int rate, int &suggestedRate, error *err);
 };
 
+enum MuteState
+{
+   None     = 0,
+   CanMute  = (1 << 0),
+   Muted    = (1 << 1),
+   SoftMute = (1 << 2),
+};
+
+inline MuteState operator|(MuteState a, MuteState b)
+{
+   return (audio::MuteState)((int)a | (int)b);
+}
+
+inline MuteState & operator|=(MuteState &a, MuteState b)
+{
+   return a = (a|b);
+}
+
+inline MuteState operator&(MuteState a, MuteState b)
+{
+   return (audio::MuteState)((int)a & (int)b);
+}
+
+inline MuteState & operator&=(MuteState &a, MuteState b)
+{
+   return a = (a&b);
+}
+
 struct Mixer : public RefCountable
 {
    typedef int value_t;
@@ -90,6 +119,12 @@ struct Mixer : public RefCountable
    virtual const char *DescribeValue(int idx, error *err) = 0;
 
    virtual int GetChannels(int idx, error *err) = 0;
+
+   virtual MuteState GetMuteState(int idx, error *err);
+   virtual void SetMute(int idx, bool on, error *err);
+
+   bool CanMute(int idx);
+   bool IsMuted(int idx, error *err);
 
    // A device can specify values as floats or integers.
    // The default implementation of either one will convert in terms of the
@@ -104,6 +139,14 @@ struct Mixer : public RefCountable
    //
    virtual void SetValue(int idx, const float *val, int n, error *err);
    virtual int GetValue(int idx, float *val, int n, error *err);
+};
+
+class SoftMuteMixer : public Mixer
+{
+   std::map<int, float> oldValues;
+public:
+   MuteState GetMuteState(int idx, error *err);
+   void SetMute(int idx, bool on, error *err);
 };
 
 struct DeviceEnumerator : public RefCountable

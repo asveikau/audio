@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -456,6 +456,45 @@ public:
 
    exit:
       return r;
+   }
+
+   MuteState
+   GetMuteState(int idx, error *err)
+   {
+      MuteState r = MuteState::None;
+      HRESULT hr = S_OK;
+      BOOL muted = FALSE;
+
+      DescribeValue(idx, err);
+      ERROR_CHECK(err);
+
+      if (volume.Get() == nullptr)
+         ERROR_SET(err, win32, E_POINTER);
+
+      hr = volume->GetMute(&muted);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+
+      r = MuteState::CanMute | (muted ? MuteState::Muted : MuteState::None);
+   exit:
+      return r;
+   }
+
+   void
+   SetMute(int idx, bool on, error *err)
+   {
+      HRESULT hr = S_OK;
+
+      DescribeValue(idx, err);
+      ERROR_CHECK(err);
+
+      if (volume.Get() == nullptr)
+         ERROR_SET(err, win32, E_POINTER);
+
+      hr = volume->SetMute(on ? TRUE : FALSE, nullptr);
+      if (FAILED(hr))
+         ERROR_SET(err, win32, hr);
+   exit:;
    }
 };
 

@@ -55,6 +55,7 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/microcodec.cc \
    $(LIBAUDIO_ROOT)src/mixer.cc \
    $(LIBAUDIO_ROOT)src/wakelock.cc \
+   $(LIBAUDIO_ROOT)src/dev/mixer.cc \
    $(LIBAUDIO_ROOT)src/dev/wrapper.cc \
    $(LIBAUDIO_ROOT)src/player.cc \
    $(LIBAUDIO_ROOT)src/source.cc

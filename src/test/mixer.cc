@@ -39,22 +39,36 @@ int main(int argc, char **argv)
    {
       auto descr = dev->DescribeValue(i, &err);
       ERROR_CHECK(&err);
+
       auto channels = dev->GetChannels(i, &err);
       ERROR_CHECK(&err);
+
 #if defined(_MSC_VER)
       float *f = (float*)_alloca(channels * sizeof(float));
 #else
       float f[channels];
 #endif
+
       dev->GetValue(i, f, channels, &err);
       ERROR_CHECK(&err);
 
       printf("%s:", descr);
+
       for (int i=0; i<channels; ++i)
       {
          auto &fv = f[i];
          printf(" %d", (int)(fv * 100));
       }
+
+      error inner;
+      auto flags = dev->GetMuteState(i, &inner);
+      if ((flags & audio::MuteState::SoftMute))
+         ;
+      else if ((flags & audio::MuteState::Muted))
+         printf(" [muted]");
+      else if ((flags & audio::MuteState::CanMute))
+         printf(" [can mute]");
+
       puts("");
    }
 

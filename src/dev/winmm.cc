@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -286,6 +286,7 @@ class WinMmMixer : public Mixer
    };
 
    std::vector<ControlInfo> controls;
+   std::map<int, ControlInfo> muteControls;
 
 public:
    WinMmMixer() : mixer(nullptr), onHeap(nullptr)
@@ -304,6 +305,7 @@ public:
    {
       MIXERCAPS caps = {0};
       MIXERCONTROL *controls = nullptr;
+      std::vector<ControlInfo> muteControls;
 
       MMRESULT r = mixerOpen(&mixer, id, 0, 0, flags);
       if (r)
@@ -356,10 +358,14 @@ public:
          for (DWORD j=0; j<lineControls.cControls; ++j)
          {
             ControlInfo info;
+            auto controlsP = &this->controls;
 
             switch (controls[j].dwControlType)
             {
             case MIXERCONTROL_CONTROLTYPE_VOLUME:
+               break;
+            case MIXERCONTROL_CONTROLTYPE_MUTE:
+               controlsP = &muteControls;
                break;
             default:
                continue;
@@ -374,11 +380,37 @@ public:
 
             try
             {
-               this->controls.push_back(info);
+               controlsP->push_back(info);
             }
             catch (const std::bad_alloc&)
             {
                ERROR_SET(err, nomem);
+            }
+         }
+      }
+
+      // Match mute switches to the appropriate index.
+      //
+      if (muteControls.size())
+      {
+         for (auto mc : muteControls)
+         {
+            // XXX O(n^2)
+            for (int i=0; i<this->controls.size(); ++i)
+            {
+               const auto &control = this->controls[i];
+               if (control.destination == mc.destination &&
+                   control.lineid == mc.lineid)
+               {
+                  try
+                  {
+                     this->muteControls[i] = mc;
+                  }
+                  catch (const std::bad_alloc &)
+                  {
+                     ERROR_SET(err, nomem);
+                  }
+               }
             }
          }
       }
@@ -472,10 +504,10 @@ public:
       details.cMultipleItems = controls[idx].multiple;
       details.cbDetails = sizeof(*value);
       details.paDetails = (void*)value;
-      r = mixerGetControlDetails(
+      r = mixerSetControlDetails(
          (HMIXEROBJ)mixer,
          &details,
-         MIXER_GETCONTROLDETAILSF_VALUE | MIXER_OBJECTF_HMIXER
+         MIXER_SETCONTROLDETAILSF_VALUE | MIXER_OBJECTF_HMIXER
       );
       if (r)
          ERROR_SET(err, winmm, r);
@@ -507,6 +539,73 @@ public:
       return details.cChannels;
    exit:
       return 0;
+   }
+
+   MuteState
+   GetMuteState(int idx, error *err)
+   {
+      MuteState r = MuteState::None;
+      auto muteControl = muteControls.find(idx);
+
+      if (muteControl != muteControls.end())
+      {
+         r |= MuteState::CanMute;
+
+         MIXERCONTROLDETAILS details = {0};
+         MMRESULT mmr = 0;
+         DWORD muted = 0;
+
+         details.cbStruct = sizeof(details);
+         details.dwControlID = muteControl->second.control;
+         details.cChannels = 1;
+         details.cbDetails = sizeof(muted);
+         details.paDetails = &muted;
+         mmr = mixerGetControlDetails(
+            (HMIXEROBJ)mixer,
+            &details,
+            MIXER_GETCONTROLDETAILSF_VALUE | MIXER_OBJECTF_HMIXER
+         );
+         if (mmr)
+            ERROR_SET(err, winmm, mmr);
+
+         if (muted)
+            r |= MuteState::Muted;
+      }
+      else if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+   exit:
+      return r;
+   }
+
+   void
+   SetMute(int idx, bool on, error *err)
+   {
+      auto muteControl = muteControls.find(idx);
+
+      if (muteControl != muteControls.end())
+      {
+         MIXERCONTROLDETAILS details = {0};
+         MMRESULT mmr = 0;
+         DWORD muted = on ? 1 : 0;
+
+         details.cbStruct = sizeof(details);
+         details.dwControlID = muteControl->second.control;
+         details.cChannels = 1;
+         details.cbDetails = sizeof(muted);
+         details.paDetails = &muted;
+         mmr = mixerSetControlDetails(
+            (HMIXEROBJ)mixer,
+            &details,
+            MIXER_SETCONTROLDETAILSF_VALUE | MIXER_OBJECTF_HMIXER
+         );
+         if (mmr)
+            ERROR_SET(err, winmm, mmr);
+      }
+      else if (idx < 0 || idx >= controls.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+   exit:;
    }
 };
 

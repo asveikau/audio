@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018, 2020 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -377,6 +377,48 @@ public:
 
    exit:
       return ERROR_FAILED(err) ? 0 : n;
+   }
+
+   MuteState
+   GetMuteState(int idx, error *err)
+   {
+      MuteState r = MuteState::None;
+
+      if (idx < 0 || idx >= elems.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      if (snd_mixer_selem_has_playback_switch(elems[idx]))
+      {
+         int value = 0;
+         int ar = snd_mixer_selem_get_playback_switch(
+            elems[idx],
+            (snd_mixer_selem_channel_id_t)0,
+            &value
+         );
+         if (ar)
+            ERROR_SET(err, alsa, ar);
+
+         r |= MuteState::CanMute;
+
+         if (!value)
+            r |= MuteState::Muted;
+      }
+   exit:
+      return r;
+   }
+
+   void
+   SetMute(int idx, bool on, error *err)
+   {
+      int r = 0;
+
+      if (idx < 0 || idx >= elems.size())
+         ERROR_SET(err, unknown, "Invalid index");
+
+      r = snd_mixer_selem_set_playback_switch_all(elems[idx], on ? 0 : 1);
+      if (r)
+         ERROR_SET(err, alsa, r);
+   exit:;
    }
 };
 

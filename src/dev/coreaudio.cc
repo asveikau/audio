@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -460,6 +460,57 @@ public:
       return r;
    }
 
+   MuteState
+   GetMuteState(int idx, error *err)
+   {
+      AudioObjectPropertyAddress addr = {0};
+      auto obj = dev;
+      MuteState r = MuteState::None;
+      OSStatus status = 0;
+      Boolean settable = false;
+
+      GetMuteIndex(idx, &addr, err);
+      ERROR_CHECK(err);
+
+      status = AudioObjectIsPropertySettable(obj, &addr, &settable);
+      if (status)
+         ERROR_SET(err, osstatus, status);
+
+      if (settable)
+      {
+         r |= MuteState::CanMute;
+
+         UInt32 m = 0;
+         UInt32 sz = sizeof(m);
+
+         status = AudioObjectGetPropertyData(obj, &addr, 0, nullptr, &sz, &m);
+         if (status)
+            ERROR_SET(err, osstatus, status);
+
+         if (m)
+            r |= MuteState::Muted;
+      }
+   exit:
+      return r;
+   }
+
+   void
+   SetMute(int idx, bool on, error *err)
+   {
+      AudioObjectPropertyAddress addr = {0};
+      auto obj = dev;
+      UInt32 m = on ? 1 : 0;
+      OSStatus status = 0;
+
+      GetMuteIndex(idx, &addr, err);
+      ERROR_CHECK(err);
+
+      status = AudioObjectSetPropertyData(obj, &addr, 0, nullptr, sizeof(m), &m);
+      if (status)
+         ERROR_SET(err, osstatus, status);
+   exit:;
+   }
+
 private:
    void
    ValidateIndex(int idx, error *err)
@@ -508,6 +559,16 @@ private:
          addr->mSelector = kAudioHardwareServiceDeviceProperty_VirtualMasterVolume;
          break;
       }
+   exit:;
+   }
+
+   void
+   GetMuteIndex(int idx, AudioObjectPropertyAddress *addr, error *err)
+   {
+      GetIndex(idx, addr, err);
+      ERROR_CHECK(err);
+
+      addr->mSelector = kAudioDevicePropertyMute;
    exit:;
    }
 };

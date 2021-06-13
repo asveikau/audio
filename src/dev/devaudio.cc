@@ -173,7 +173,7 @@ public:
 #if defined(AUDIO_MIXER_DEVINFO)
 #define HAVE_DEV_MIXER 1
 
-class DevMixer : public Mixer
+class DevMixer : public SoftMuteMixer
 {
    int fd;
    std::vector<mixer_devinfo> devinfo;
@@ -405,7 +405,7 @@ public:
 #if defined(AUDIO_SETINFO)
 #define HAVE_AUDIO_CTL 1
 
-class AudioCtlMixer : public Mixer
+class AudioCtlMixer : public SoftMuteMixer
 {
    int fd;
 public:
