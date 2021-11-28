@@ -19,12 +19,6 @@
 
 namespace {
 
-bool
-check_atoi(const char *p, int &o)
-{
-   return ::check_atoi(p, &o);
-}
-
 class DevNodeEnumerator : public DeviceEnumerator
 {
 protected:
@@ -142,7 +136,7 @@ private:
          {
             int i;
 
-            if (check_atoi(filePart + prefixLen, i))
+            if (check_atoi(filePart + prefixLen, &i))
             {
                snprintf(buf + mixerLen, sizeof(buf)-mixerLen, "%d", i);
                mixerLen = strlen(buf);
@@ -356,7 +350,7 @@ public:
                else
                {
                   int i;
-                  if (check_atoi(ent->d_name + prefix, i) && i >= max)
+                  if (check_atoi(ent->d_name + prefix, &i) && i >= max)
                   {
                      max = i;
                   }

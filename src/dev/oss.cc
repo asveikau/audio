@@ -460,7 +460,7 @@ public:
          if (!strncmp(p, "pcm", 3))
          {
             int i;
-            if (check_atoi(p+3, i) && i > max)
+            if (check_atoi(p+3, &i) && i > max)
                max = i;
          }
       }
