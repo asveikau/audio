@@ -13,6 +13,7 @@
 
 #include <dirent.h>
 #include <common/size.h>
+#include <common/misc.h>
 #include <common/trie.h>
 #include <memory>
 
@@ -21,15 +22,7 @@ namespace {
 bool
 check_atoi(const char *p, int &o)
 {
-   char *q = nullptr;
-   o = -1;
-   auto r = strtol(p, &q, 10);
-   if (p != q)
-   {
-      o = r;
-      return true;
-   }
-   return false;
+   return ::check_atoi(p, &o);
 }
 
 class DevNodeEnumerator : public DeviceEnumerator
