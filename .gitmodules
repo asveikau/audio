@@ -13,3 +13,6 @@
 [submodule "third_party/libopusfile"]
 	path = third_party/libopusfile
 	url = git@github.com:xiph/opusfile.git
+[submodule "third_party/libopus"]
+	path = third_party/libopus
+	url = git@github.com:xiph/opus.git
