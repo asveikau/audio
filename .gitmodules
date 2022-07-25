@@ -19,3 +19,6 @@
 [submodule "third_party/libvorbis"]
 	path = third_party/libvorbis
 	url = git@github.com:xiph/vorbis.git
+[submodule "third_party/libalac"]
+	path = third_party/libalac
+	url = git@github.com:asveikau/alac.git
