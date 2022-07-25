@@ -7,3 +7,6 @@
 [submodule "third_party/libflac"]
        path = third_party/libflac
        url = git@github.com:xiph/flac.git
+[submodule "third_party/libogg"]
+	path = third_party/libogg
+	url = git@github.com:xiph/ogg.git
