@@ -30,7 +30,7 @@ mute$(EXESUFFIX): src/test/mute.cc $(TESTDEPENDS)
 clean:
 	rm -f $(LIBCOMMON) $(LIBCOMMON_OBJS)
 	rm -f $(LIBAUDIO) $(LIBAUDIO_OBJS)
-	rm -f $(TEST_TARGETS) $(foreach i, $(TESTS), $(i).obj)
+	rm -f $(TEST_TARGETS) $(foreach i, $(TESTS), $(i).obj) $(GENERATED_HEADERS)
 
 export
 depend:

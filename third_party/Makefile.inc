@@ -15,6 +15,9 @@ $(LIBOGG_ROOT)include/ogg/config_types.h:
 	echo typedef int64_t ogg_int64_t\;) \
 	> "$@"
 
+GENERATED_HEADERS += \
+	$(LIBOGG_ROOT)include/ogg/config_types.h
+
 LIBOGG_DESCR:=libogg
 LIB_DESCRS+=LIBOGG_DESCR
 
