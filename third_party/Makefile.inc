@@ -12,7 +12,8 @@ $(LIBOGG_ROOT)include/ogg/config_types.h:
 	echo typedef uint16_t ogg_uint16_t\;; \
 	echo typedef int32_t ogg_int32_t\;; \
 	echo typedef uint32_t ogg_uint32_t\;; \
-	echo typedef int64_t ogg_int64_t\;) \
+	echo typedef int64_t ogg_int64_t\;; \
+        echo typedef uint64_t ogg_uint64_t\;) \
 	> "$@"
 
 GENERATED_HEADERS += \
