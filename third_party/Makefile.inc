@@ -622,6 +622,7 @@ LIBFLAC_VERSION:=$(shell cd $(LIBFLAC_ROOT); git describe --tags)
 LIBFLAC_CFLAGS += \
    -DHAVE_LROUND \
    -DHAVE_STDINT_H \
+   -DHAVE_INTTYPES_H \
    -DFLAC__HAS_OGG \
    -DFLAC__NO_DLL \
    -I$(LIBOGG_ROOT)/include \
