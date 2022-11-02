@@ -12,6 +12,7 @@
 #include <common/c++/stream.h>
 
 #include <functional>
+#include <string>
 #include <stdint.h>
 
 namespace audio {
