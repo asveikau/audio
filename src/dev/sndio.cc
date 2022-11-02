@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2018, 2021 Andrew Sveikauskas
+ Copyright (C) 2018, 2021-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -8,6 +8,7 @@
 
 #include <AudioDevice.h>
 #include <common/c++/new.h>
+#include <common/misc.h>
 
 #include <sndio.h>
 
@@ -44,6 +45,19 @@ struct SndioDevice : public Device
       return "sndio";
    }
 
+   void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+         Pcm24,
+         Pcm24Pad,
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
    void Open(error *err)
    {
       sndio = sio_open(SIO_DEVANY, SIO_PLAY, 0);
@@ -65,12 +79,22 @@ struct SndioDevice : public Device
       {
       case PcmShort:
          par.bits = 16;
-         par.sig = 1;
-         par.le = SIO_LE_NATIVE;
+         par.bps = SIO_BPS(par.bits);
+         break;
+      case Pcm24:
+         par.bits = 24;
+         par.bps = 3;
+         break;
+      case Pcm24Pad:
+         par.bits = 24;
+         par.bps = SIO_BPS(par.bits);
          break;
       default:
          ERROR_SET(err, unknown, "Unsupported format");
       }
+
+      par.sig = 1;
+      par.le = SIO_LE_NATIVE;
 
       par.bps = SIO_BPS(par.bits);
 

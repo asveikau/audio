@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2019 Andrew Sveikauskas
+ Copyright (C) 2019, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -34,8 +34,14 @@ struct AlacCodec : public audio::MicroCodec
          ERROR_SET(err, alac, status);
 
       // XXX
-      if (decoder.mConfig.bitDepth != 16)
+      switch (decoder.mConfig.bitDepth)
+      {
+      case 16:
+      case 24:
+         break;
+      default:
          ERROR_SET(err, unknown, "Untested bitdepth");
+      }
    exit:;
    }
 
@@ -51,9 +57,21 @@ struct AlacCodec : public audio::MicroCodec
    {
       md->SampleRate = decoder.mConfig.sampleRate;
       md->Channels = decoder.mConfig.numChannels;
-      md->Format = audio::PcmShort;
+
+      switch (decoder.mConfig.bitDepth)
+      {
+      case 16:
+         md->Format = audio::PcmShort;
+         break;
+      case 24:
+         md->Format = audio::Pcm24;
+         break;
+      default:
+         ERROR_SET(err, unknown, "Untested bitdepth");
+      }
 
       md->SamplesPerFrame = decoder.mConfig.frameLength;
+   exit:;
    }
 
    int
@@ -70,7 +88,7 @@ struct AlacCodec : public audio::MicroCodec
       int r = 0;
       BitBuffer bb;
 
-      audio::Format fmt = audio::PcmShort;
+      int bps = decoder.mConfig.bitDepth / 8;
       int channels = decoder.mConfig.numChannels;
 
       BitBufferInit(&bb, (unsigned char*)samples, samplesNBytes);
@@ -78,13 +96,13 @@ struct AlacCodec : public audio::MicroCodec
       status = decoder.Decode(
          &bb,
          (unsigned char*)outputBuffer,
-         outputBufferNBytes/(audio::GetBitsPerSample(fmt)/8)/channels,
+         outputBufferNBytes/bps/channels,
          channels,
          &outLen
       );
       if (status)
          ERROR_SET(err, alac, status);
-      r = outLen * (audio::GetBitsPerSample(fmt)/8) * channels;
+      r = outLen * bps * channels;
    exit:
       return r;
    }

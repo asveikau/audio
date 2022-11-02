@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -121,7 +121,13 @@ public:
    void
    GetMetadata(Metadata *res, error *err)
    {
-      res->Format = PcmShort;
+      auto depth = FLAC__stream_decoder_get_bits_per_sample(file);
+
+      if (depth <= 16)
+         res->Format = PcmShort;
+      else
+         res->Format = Pcm24;
+
       res->SampleRate = FLAC__stream_decoder_get_sample_rate(file);
       res->Channels = FLAC__stream_decoder_get_channels(file);
       res->SamplesPerFrame = 0;
@@ -163,27 +169,6 @@ public:
    }
 
    void
-   OnSample(int16_t sample)
-   {
-      void *res;
-
-      if (!MetadataChanged && currentLen >= 2)
-      {
-         res = currentBuffer;
-         currentBuffer = (char*)currentBuffer + 2;
-         currentLen -= 2;
-      }
-      else
-      {
-         pendingSamples.push_back(0);
-         pendingSamples.push_back(0);
-         res = pendingSamples.data() + pendingSamples.size() - 2;
-      }
-
-      memcpy(res, &sample, sizeof(sample));
-   }
-
-   void
    OnFrameDecoded(
       const FLAC__Frame *frame,
       const FLAC__int32 * const buffer[],
@@ -193,6 +178,7 @@ public:
       const auto channels = frame->header.channels;
       const auto bps = frame->header.bits_per_sample;
       float conversion = 1.0f;
+      float factor;
 
       if (channels != this->channels ||
           bps != bitsPerSample ||
@@ -205,8 +191,13 @@ public:
          this->sampleRate = frame->header.sample_rate;
       }
 
-      if (bps != 16)
-         conversion = 1.0f / (1LL << (bps-1)) * 32767.0;
+      if (bps < 16)
+         factor = 32767.0f;
+      else if (bps != 24)
+         factor = 8388607.0f;
+
+      if (bps != 16 && bps != 24)
+         conversion = 1.0f / (1LL << (bps-1)) * factor;
 
       try
       {
@@ -215,10 +206,53 @@ public:
             for (int channel = 0; channel < channels; ++channel)
             {
                auto sample = buffer[channel][i];
+               void *res;
+               const void *src;
+               size_t len = bps/8;
+               union
+               {
+                  int16_t d16;
+                  int32_t d32;
+               } dummy;
+               static const int le = 1;
+
                if (bps == 16)
-                  OnSample(sample);
+               {
+                  dummy.d16 = sample;
+                  src = &dummy.d16;
+               }
+               else if (bps == 24)
+               {
+                  src = (char*)&sample + !*(char*)&le;
+               }
+               else if (bps < 16)
+               {
+                  dummy.d16 = sample * conversion;
+                  src = &dummy.d16;
+                  len = 2;
+               }
                else
-                  OnSample(sample * conversion);
+               {
+                  dummy.d32 = sample * conversion;
+                  src = (char*)&dummy.d32 + !*(char*)&le;
+                  len = 3;
+               }
+
+               if (!MetadataChanged && currentLen >= len)
+               {
+                  res = currentBuffer;
+                  currentBuffer = (char*)currentBuffer + len;
+                  currentLen -= len;
+               }
+               else
+               {
+                  for (int i=len; i--;)
+                     pendingSamples.push_back(0);
+
+                  res = pendingSamples.data() + pendingSamples.size() - len;
+               }
+
+               memcpy(res, src, len);
             }
          }
       }

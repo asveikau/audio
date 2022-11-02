@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -91,6 +91,19 @@ public:
    }
 
    void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+         Pcm24,
+         Pcm24Pad,
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
+   void
    Initialize(IMMDeviceEnumerator *devEnum, bool isDefault, error *err)
    {
       if (isDefault)
@@ -143,7 +156,7 @@ public:
    SetMetadata(const Metadata &metadata, error *err)
    {
       HRESULT hr = S_OK;
-      WAVEFORMATEX fmt;
+      WAVEFORMATEXTENSIBLE fmt;
       int attempts = 5;
 
       CleanupOld();
@@ -152,7 +165,7 @@ public:
       ERROR_CHECK(err);
 
       MetadataToWaveFormatEx(metadata, &fmt);
-      blockAlign = fmt.nBlockAlign;
+      blockAlign = fmt.Format.nBlockAlign;
 
       WaitForSingleObject(event, 0);
 
@@ -165,7 +178,7 @@ retry:
          metadata.SamplesPerFrame * 10000000LL /
             metadata.SampleRate,
          0,
-         &fmt,
+         &fmt.Format,
          nullptr
       );
       if (FAILED(hr) && attempts--)
@@ -276,7 +289,7 @@ retry:
    {
       HRESULT hr = S_OK;
       Metadata md;
-      WAVEFORMATEX inFmt;
+      WAVEFORMATEXTENSIBLE inFmt;
       WAVEFORMATEX *outFmt = nullptr;
 
       if (!client.Get())
@@ -293,7 +306,7 @@ retry:
 
       hr = client->IsFormatSupported(
          AUDCLNT_SHAREMODE_SHARED,
-         &inFmt,
+         &inFmt.Format,
          &outFmt
       );
       if (FAILED(hr))

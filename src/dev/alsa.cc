@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -76,6 +76,23 @@ public:
       return snd_pcm_name(pcm);
    }
 
+   void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      //
+      // Ideally, we might use snd_pcm_hw_params_get_format_mask() and
+      // snd_pcm_format_mask_test()
+      //
+
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+         Pcm24Pad,
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
    void SetMetadata(const Metadata &md, error *err)
    {
       snd_pcm_hw_params_t *params = nullptr;
@@ -125,6 +142,9 @@ public:
       {
       case PcmShort:
          fmt = *(char*)&little_endian ? SND_PCM_FORMAT_S16_LE : SND_PCM_FORMAT_S16_BE;
+         break;
+      case Pcm24Pad:
+         fmt = *(char*)&little_endian ? SND_PCM_FORMAT_S24_LE : SND_PCM_FORMAT_S24_BE;
          break;
       default:
          ERROR_SET(err, unknown, "Unsupported format");

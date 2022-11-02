@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -211,6 +211,18 @@ public:
       return "CoreAudio";
    }
 
+   void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+         Pcm24,
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
    void SetMetadata(const Metadata &md, error *err)
    {
       OSStatus status = 0;
@@ -221,6 +233,7 @@ public:
       switch (md.Format)
       {
       case PcmShort:
+      case Pcm24:
          descr.mFormatID = kAudioFormatLinearPCM;
          descr.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger;
          break;

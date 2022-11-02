@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -268,10 +268,26 @@ public:
       switch (waveFormat->wFormatTag)
       {
       case WAVE_FORMAT_PCM:
-         res->Format = PcmShort;
          break;
+      case WAVE_FORMAT_EXTENSIBLE:
+         if (waveFormatLength < sizeof(WAVE_FORMAT_EXTENSIBLE))
+            ERROR_SET(err, unknown, "Unexpectedly short format");
+         if (!memcmp(&((WAVEFORMATEXTENSIBLE*)waveFormat)->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM, sizeof(GUID)))
+            break;
       default:
          ERROR_SET(err, unknown, "Unknown format tag");
+      }
+
+      switch (waveFormat->wBitsPerSample)
+      {
+      case 16:
+         res->Format = PcmShort;
+         break;
+      case 24:
+         res->Format = Pcm24;
+         break;
+      default:
+         ERROR_SET(err, unknown, "Unexpected bits per sample");
       }
 
       res->Channels = waveFormat->nChannels;

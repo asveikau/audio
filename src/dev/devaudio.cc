@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2020 Andrew Sveikauskas
+ Copyright (C) 2017-2020, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -72,6 +72,18 @@ public:
       return p;
    }
 
+   void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+         Pcm24,
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
    void SetMetadata(const Metadata &md, error *err)
    {
 #if defined(AUDIO_SETINFO)
@@ -84,11 +96,14 @@ public:
       info.play.sample_rate = md.SampleRate;
       info.play.channels = md.Channels;
 
+      info.play.encoding = AUDIO_ENCODING_SLINEAR;
       switch (md.Format)
       {
       case PcmShort:
-         info.play.encoding = AUDIO_ENCODING_SLINEAR;
          info.play.precision = 16;
+         break;
+      case Pcm24:
+         info.play.precision = 24;
          break;
       default:
          ERROR_SET(err, unknown, "Unknown format");
@@ -113,15 +128,19 @@ public:
       switch (md.Format)
       {
       case PcmShort:
-         par.sig = 1;
-         par.le = *(unsigned char*)(&par.sig);
          par.bits = 16;
-         par.msb = 1;
-         par.bps = par.bits/8;
+         break;
+      case Pcm24:
+         par.bits = 24;
          break;
       default:
          ERROR_SET(err, unknown, "Unknown format");
       }
+
+      par.sig = 1;
+      par.le = *(unsigned char*)(&par.sig);
+      par.msb = 1;
+      par.bps = par.bits/8;
 
       if (ioctl(fd, AUDIO_SETPAR, &par))
          ERROR_SET(err, errno, errno);

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018, 2019 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2019, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -22,10 +22,6 @@
 #include <math.h>
 
 #include <tools/kiss_fftr.h>
-
-#define OUTSIDE_SPEEX
-#define RANDOM_PREFIX libaudio
-#include "../../third_party/libspeex-resample/speex_resampler.h"
 
 using namespace common;
 using namespace audio;
@@ -70,7 +66,7 @@ struct PlayerVisState
 } // end namespace
 
 audio::Player::Player()
-  : buffer(nullptr), bufsz(0), pos(0), resampler(nullptr)
+  : buffer(nullptr), bufsz(0), pos(0)
 {
    memset(&md, 0, sizeof(md));
    visState = new PlayerVisState;
@@ -81,8 +77,6 @@ audio::Player::~Player()
    if (buffer)
       delete [] (char*)buffer;
    delete visState;
-   if (resampler)
-      speex_resampler_destroy(resampler);
 }
 
 void
@@ -176,27 +170,37 @@ audio::Player::NegotiateMetadata(error *err)
 {
    int newBufsz;
    int suggested;
-   int restore = 0;
+   Metadata targetMd;
+   const Format *formats = nullptr;
+   int nFormats = 0;
+   Format suggestedFormat;
+   bool formatFound = false;
+   int interestingFormats[] = { -1, -1, -1 };
 
+   // Retrieve codec's native format.
+   //
    source->GetMetadata(&md, err);
    ERROR_CHECK(err);
 
    LogMetadata(md, source->Describe());
 
+   // Default packet size of 20ms if not set by codec.
+   //
    if (!md.SamplesPerFrame)
    {
       md.SamplesPerFrame = 20 * md.SampleRate / 1000;
    }
 
+   // Stash metadata.  We may change this as we consider conversions.
+   //
+   targetMd = md;
+   transforms.Clear();
+
+   // See if the device likes our sample rate.
+   //
    suggested = md.SampleRate;
    dev->ProbeSampleRate(md.SampleRate, suggested, err);
    ERROR_CHECK(err);
-
-   if (resampler)
-   {
-      speex_resampler_destroy(resampler);
-      resampler = nullptr;
-   }
 
    if (suggested != md.SampleRate)
    {
@@ -205,33 +209,81 @@ audio::Player::NegotiateMetadata(error *err)
          md.SampleRate, suggested
       );
 
-      int speexErr = 0;
-      resampler = speex_resampler_init(
-         md.Channels,
-         md.SampleRate,
-         suggested,
-         10,
-         &speexErr
-      );
-      if (!resampler || speexErr)
+      // Resampler only suports pcm16.
+      //
+      if (targetMd.Format != PcmShort)
       {
-         log_printf("resampler init fail; p=%p, err=%d", resampler, speexErr);
-         ERROR_SET(err, unknown, "Resampler init fail");
+         log_printf("Converting to s16ne for resampler");
+
+         transforms.AddFormatConversion(targetMd, PcmShort, err);
+         ERROR_CHECK(err);
       }
-      restore = md.SampleRate;
-      md.SampleRate = suggested;
-   }
-   else if (resampleBuffer.size())
-   {
-      resampleBuffer.resize(0);
-      resampleBuffer.shrink_to_fit();
+
+      transforms.AddResampler(targetMd, suggested, err);
+      ERROR_CHECK(err);
    }
 
-   dev->SetMetadata(md, err);
+   // See if the device likes our format.
+   //
+   suggestedFormat = targetMd.Format;
+   dev->GetSupportedFormats(formats, nFormats, err);
    ERROR_CHECK(err);
+   if (!nFormats)
+      ERROR_SET(err, unknown, "No supported formats");
 
-   if (restore)
-      md.SampleRate = restore;
+   for (int i=0; !formatFound && i<nFormats; ++i)
+   {
+      int tB = 0, cB = 0, c2B = 0, c3B;
+      auto getBits = [] (int *cache, Format fmt) -> int
+      {
+         if (*cache >= 0)
+            return *cache;
+
+         // Treat 24 bit with pad as 24 bits.
+         //
+         if (fmt == Pcm24Pad)
+            return *cache = 24;
+         return *cache = GetBitsPerSample(fmt);
+      };
+      // If we find our format, great.
+      if (targetMd.Format == formats[i])
+         formatFound = true;
+      // Try to find one with equal bit depth.
+      else if (getBits(&cB, formats[i]) == getBits(&tB, targetMd.Format))
+         interestingFormats[0] = i;
+      // Failing that, look at stuff with higher bit depth.
+      else if (getBits(&cB, formats[i]) > getBits(&tB, targetMd.Format) &&
+               (interestingFormats[1] < 0 || getBits(&c2B, formats[interestingFormats[1]]) < getBits(&cB, formats[i])))
+         interestingFormats[1] = i;
+      // Otherwise, just get maximum bit depth.
+      else if (interestingFormats[2] < 0 || getBits(&c3B, formats[interestingFormats[2]]) < getBits(&cB, formats[i]))
+         interestingFormats[2] = i;
+   }
+   if (!formatFound)
+   {
+      for (int i=0; i<ARRAY_SIZE(interestingFormats); ++i)
+      {
+         if (interestingFormats[i] >= 0)
+         {
+            suggestedFormat = formats[interestingFormats[i]];
+            formatFound = true;
+            break;
+         }
+      }
+   }
+   if (!formatFound)
+      suggestedFormat = formats[0];
+
+   if (targetMd.Format != suggestedFormat)
+   {
+      log_printf("Converting to %s for audio device", GetFormatName(suggestedFormat));
+
+      transforms.AddFormatConversion(targetMd, suggestedFormat, err);
+      ERROR_CHECK(err);
+   }
+
+   dev->SetMetadata(targetMd, err);
+   ERROR_CHECK(err);
 
    newBufsz = md.SamplesPerFrame * md.Channels *
               GetBitsPerSample(md.Format) / 8;
@@ -284,17 +336,48 @@ retry:
 
    try
    {
+      // XXX this code is horrendous.
       switch (md.Format)
       {
       case PcmShort:
          {
-            const int16_t *p = (const int16_t*)buf;
+            auto p = (const int16_t*)buf;
             for (int i=0; i<n; ++i)
             {
                float f = *p++;
                for (int j = 1; j<md.Channels; ++j)
                   f += *p++;
                f /= (md.Channels * 32767.0f);
+               pendingPacket.push_back(f * 127.0f);
+            }
+         }
+         break;
+      case Pcm24:
+         {
+            auto p = (const unsigned char*)buf;
+            for (int i=0; i<n; ++i)
+            {
+               int32_t i32 = 0;
+               static const int le = 1;
+               memcpy((char*)&i32 + !*(char*)&le, p, 3);
+               p += 3;
+               float f = i32;
+               for (int j = 1; j<md.Channels; ++j)
+                  f += *p++;
+               f /= (md.Channels * 8388607.0f);
+               pendingPacket.push_back(f * 127.0f);
+            }
+         }
+         break;
+      case Pcm24Pad:
+         {
+            auto p = (const int32_t*)buf;
+            for (int i=0; i<n; ++i)
+            {
+               float f = *p++;
+               for (int j = 1; j<md.Channels; ++j)
+                  f += *p++;
+               f /= (md.Channels * 8388607.0f);
                pendingPacket.push_back(f * 127.0f);
             }
          }
@@ -430,51 +513,13 @@ audio::Player::Step(error *err)
          ProcessVis(buffer, r);
       }
 
-      if (resampler)
-      {
-         int denom = GetBitsPerSample(md.Format) / 8 * md.Channels;
-         spx_uint32_t inLen = r / denom;
-         spx_uint32_t outLen = 0;
+      void *buf = buffer;
+      size_t len = r;
 
-         spx_uint32_t rate_in, rate_out;
-         speex_resampler_get_rate(resampler, &rate_in, &rate_out);
+      transforms.TransformAudioPacket(buf, len, err);
+      ERROR_CHECK(err);
 
-         int desiredSize = (int64_t)r * rate_out / rate_in;
-         desiredSize = (desiredSize + denom - 1) / denom * denom;
-
-         if (desiredSize > resampleBuffer.size())
-         {
-            try
-            {
-               resampleBuffer.resize(desiredSize);
-            }
-            catch (const std::bad_alloc&)
-            {
-               ERROR_SET(err, nomem);
-            }
-         }
-
-         outLen = desiredSize / denom;
-         int speexErr =
-            speex_resampler_process_interleaved_int(
-               resampler,
-               (const spx_int16_t*)buffer,
-               &inLen,
-               (spx_int16_t*)resampleBuffer.data(),
-               &outLen
-            );
-         if (speexErr)
-         {
-            log_printf("resampler returned %d", speexErr);
-            ERROR_SET(err, unknown, "Resampler error");
-         }
-
-         dev->Write(resampleBuffer.data(), outLen * denom, err);
-      }
-      else
-      {
-         dev->Write(buffer, r, err);
-      }
+      dev->Write(buf, len, err);
 
       if (ERROR_FAILED(err))
       {

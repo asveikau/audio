@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018, 2019 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2019, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -11,13 +11,13 @@
 
 #include "AudioSource.h"
 #include "AudioDevice.h"
+#include "AudioTransform.h"
 
 #include <common/c++/scheduler.h>
 #include <common/c++/event.h>
 
 #include <stdlib.h>
-
-struct SpeexResamplerState_;
+#include <memory>
 
 namespace audio {
 
@@ -48,8 +48,7 @@ class Player : public RefCountable
    int bufsz;
    uint64_t pos;
    PlayerVisState *visState;
-   SpeexResamplerState_ *resampler;
-   std::vector<unsigned char> resampleBuffer;
+   AudioTransformStack transforms;
    common::Pointer<common::RefCountable> wakeLock;
    void ProcessVis(const void *buf, int len);
    void TimeSync(error *err);

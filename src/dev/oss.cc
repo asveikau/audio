@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -82,6 +82,26 @@ public:
    }
 
    void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      //
+      // Ideally we would use the GETFMTS ioctl, which works on Linux and FreeBSD.
+      // However this tells us only about native capabilities of the device, not
+      // any conversion that the OSS layer might do, so this is somewhat pointless
+      // at the moment.
+      //
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+#if defined(AFMT_S24_LE)  // Present in FreeBSD, missing in Linux.
+         Pcm24,
+#endif
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
+   void
    GetSupportedSampleRates(SampleRateSupport &spec, error *err)
    {
 #if defined(SNDCTL_AUDIOINFO)
@@ -145,6 +165,16 @@ public:
       case PcmShort:
          i = *(char*)&little_endian ? AFMT_S16_LE : AFMT_S16_BE;
          break;
+#if defined(AFMT_S24_LE)
+      case Pcm24:
+         i = *(char*)&little_endian ? AFMT_S24_LE : AFMT_S24_BE;
+         break;
+#endif
+#if defined(AFMT_S32_LE) && 0 // Appears broken on FreeBSD
+      case Pcm24Pad:
+         i = *(char*)&little_endian ? AFMT_S32_LE : AFMT_S32_BE;
+         break;
+#endif
       default:
          ERROR_SET(err, unknown, "Unknown format");
       }

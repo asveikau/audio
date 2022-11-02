@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +23,7 @@ class CoreAudioSource : public Source
    Pointer<Stream> stream;
    AudioFileID id;
    ExtAudioFileRef extFile;
+   Format format;
    int sampleRate;
    int channels;
    int blockAlign;
@@ -120,7 +121,16 @@ public:
 
       targetFormat.mFormatID = kAudioFormatLinearPCM;
       targetFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger;
-      targetFormat.mBitsPerChannel = 16;
+      if (nativeFormat.mBitsPerChannel <= 16)
+      {
+         targetFormat.mBitsPerChannel = 16;
+         format = PcmShort;
+      }
+      else
+      {
+         targetFormat.mBitsPerChannel = 24;
+         format = Pcm24;
+      }
 
       targetFormat.mSampleRate = nativeFormat.mSampleRate;
       targetFormat.mChannelsPerFrame = nativeFormat.mChannelsPerFrame;
@@ -151,7 +161,7 @@ public:
 
    void GetMetadata(Metadata *res, error *err)
    {
-      res->Format = PcmShort;
+      res->Format = format;
       res->SampleRate = sampleRate;
       res->Channels = channels;
       res->SamplesPerFrame = 0;

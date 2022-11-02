@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2021 Andrew Sveikauskas
+ Copyright (C) 2017-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -51,6 +51,10 @@ struct Device : public RefCountable
    // Programmer-ese string description of the device.
    //
    virtual const char *GetName(error *err) = 0;
+
+   // Retrieve supported formats of the device.
+   //
+   virtual void GetSupportedFormats(const Format *&formats, int &n, error *err);
 
    // Attempt to set sample rate, format, etc.
    // Do this first.

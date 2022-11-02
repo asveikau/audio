@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017 Andrew Sveikauskas
+ Copyright (C) 2017, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -11,15 +11,83 @@
 namespace audio { namespace windows {
 
 static inline void
-MetadataToWaveFormatEx(const Metadata &md, WAVEFORMATEX *wfe)
+MetadataToWaveFormatEx(const Metadata &md, WAVEFORMATEXTENSIBLE *wfe)
 {
-   wfe->wFormatTag = WAVE_FORMAT_PCM;
-   wfe->nChannels = md.Channels;
-   wfe->nSamplesPerSec = md.SampleRate;
-   wfe->wBitsPerSample = GetBitsPerSample(md.Format);
-   wfe->nBlockAlign = wfe->nChannels * wfe->wBitsPerSample / 8;
-   wfe->nAvgBytesPerSec = wfe->nSamplesPerSec * wfe->nBlockAlign;
-   wfe->cbSize = 0;
+   bool needEx = false;
+
+   auto fmt = &wfe->Format;
+   fmt->nChannels = md.Channels;
+   fmt->nSamplesPerSec = md.SampleRate;
+   fmt->wBitsPerSample = GetBitsPerSample(md.Format);
+   fmt->nBlockAlign = fmt->nChannels * fmt->wBitsPerSample / 8;
+   fmt->nAvgBytesPerSec = fmt->nSamplesPerSec * fmt->nBlockAlign;
+
+   switch (fmt->wBitsPerSample)
+   {
+   case 8:
+   case 16:
+      needEx = false;
+      break;
+   default:
+      needEx = true;
+      break;
+   }
+
+   if (fmt->nChannels > 2)
+      needEx = true;
+
+   if (!needEx)
+   {
+      fmt->wFormatTag = WAVE_FORMAT_PCM;
+      fmt->cbSize = 0;
+   }
+   else
+   {
+      fmt->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+      fmt->cbSize = sizeof(*wfe) - sizeof(wfe->Format);
+
+      switch (md.Format)
+      {
+      case Pcm24Pad:
+         wfe->Samples.wValidBitsPerSample = 24;
+         break;
+      default:
+         wfe->Samples.wValidBitsPerSample = fmt->wBitsPerSample;
+      }
+
+      // XXX This is probably not right
+      switch (fmt->nChannels)
+      {
+      case 1:
+         wfe->dwChannelMask = SPEAKER_FRONT_CENTER;
+         break;
+      case 2:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
+         break;
+     case 3:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_LOW_FREQUENCY;
+         break;
+      case 4:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT;
+         break;
+      case 5:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT | SPEAKER_LOW_FREQUENCY;
+         break;
+      case 6:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER | SPEAKER_LOW_FREQUENCY | SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT;
+         break;
+      case 7:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER | SPEAKER_LOW_FREQUENCY | SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT | SPEAKER_BACK_CENTER;
+         break;
+      case 8:
+         wfe->dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER | SPEAKER_LOW_FREQUENCY | SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT | SPEAKER_SIDE_LEFT | SPEAKER_SIDE_RIGHT;
+         break;
+      default:
+         wfe->dwChannelMask = 0;
+      }
+
+      wfe->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+   }
 }
 
 } } // end namespace

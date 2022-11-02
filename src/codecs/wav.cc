@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -36,6 +36,12 @@ struct WavHeader
    uint32_t FormatHeaderSize;
    WavFormat FormatHeader;
 };
+struct ExtensibleHeader
+{
+   uint32_t Reserved;
+   uint32_t ChannelMask;
+   unsigned char Guid[16];
+};
 struct Header
 {
    uint32_t Tag;
@@ -56,6 +62,23 @@ read32(const uint32_t *ptr)
           (((uint32_t)p[1]) << 8) |
           (((uint32_t)p[2]) << 16) |
           (((uint32_t)p[3]) << 24);
+}
+
+uint32_t
+read24(const void *ptr)
+{
+   const unsigned char *p = (const unsigned char *)ptr;
+   return *p |
+          (((uint32_t)p[1]) << 8) |
+          (((uint32_t)p[2]) << 16);
+}
+
+void
+write24ne(unsigned char *p, uint32_t value)
+{
+   int little_endian = 1;
+   char *q = ((char*)&value) + !*(char*)&little_endian;
+   memcpy(p, q, 3);
 }
 
 uint16_t
@@ -79,12 +102,22 @@ public:
    {
       this->stream = stream;
 
+      uint64_t offsetToHeader;
       WavHeader header;
       const auto &fmt = header.FormatHeader;
       Header dataMagic;
       int nAttempts = 10;
+      ExtensibleHeader extHeader = {0};
+      int r;
 
-      auto r = stream->Read(&header, sizeof(header), err);
+      static const unsigned char PcmGuid[] =
+      {
+         0x01,0x00,0x00,0x00,0x00,0x00,0x10,0x00,0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71
+      };
+
+      offsetToHeader = stream->GetPosition(err);
+
+      r = stream->Read(&header, sizeof(header), err);
       ERROR_CHECK(err);
       if (r < sizeof(header))
          ERROR_SET(err, unknown, "WAV header too short");
@@ -118,10 +151,44 @@ public:
       offsetToPayload = stream->GetPosition(err);
       ERROR_CHECK(err);
 
-      if (read16(&fmt.Format) != 1 || read16(&fmt.BitsPerSample) != 16)
-         ERROR_SET(err, unknown, "Sorry - only 16-bit PCM supported");
+      switch (read16(&fmt.Format))
+      {
+      case 1:      // PCM
+         break;
+      case 0xfffe: // WAVE_FORMAT_EXTENSIBLE
 
-      metadata.Format = PcmShort;
+         if (read32(&header.FormatHeaderSize) < sizeof(header.FormatHeader) + sizeof(ExtensibleHeader))
+            ERROR_SET(err, unknown, "Extensible header exceeds header size");
+
+         stream->Seek(offsetToHeader + sizeof(header), SEEK_SET, err);
+         ERROR_CHECK(err);
+
+         r = stream->Read(&extHeader, sizeof(extHeader), err);
+         ERROR_CHECK(err);
+         if (r != sizeof(extHeader))
+            ERROR_SET(err, unknown, "short read");
+
+         stream->Seek(offsetToPayload, SEEK_SET, err);
+         ERROR_CHECK(err);
+
+         if (sizeof(PcmGuid) == sizeof(extHeader.Guid) && !memcmp(extHeader.Guid, PcmGuid, sizeof(PcmGuid)))
+            break;
+      default:
+         ERROR_SET(err, unknown, "Only PCM supported");
+      }
+
+      switch (read16(&fmt.BitsPerSample))
+      {
+      case 16:
+         metadata.Format = PcmShort;
+         break;
+      case 24:
+         metadata.Format = Pcm24;
+         break;
+      default:
+         ERROR_SET(err, unknown, "Sorry - unsupported bits per sample");
+      }
+
       metadata.Channels = read16(&fmt.Channels);
       metadata.SampleRate = read32(&fmt.SampleRate);
       metadata.SamplesPerFrame = 0;
@@ -139,10 +206,34 @@ public:
       auto r = stream->Read(buf, len, err);
       if (!ERROR_FAILED(err))
       {
-         uint16_t *p = (uint16_t*)buf;
-         for (auto n = r/2; n--; ++p)
-            *p = read16(p);
+         switch (metadata.Format)
+         {
+         case PcmShort:
+            {
+               auto p = (uint16_t*)buf;
+               for (auto n = r/2; n--; ++p)
+                  *p = read16(p);
+            }
+            break;
+         case Pcm24:
+            {
+               auto p = (unsigned char *)buf;
+               auto n = r;
+
+               while (n)
+               {
+                  uint32_t i = read24(p);
+                  write24ne(p, i);
+                  p += 3;
+                  n -= 3;
+               }
+            }
+            break;
+         default:
+            ERROR_SET(err, unknown, "unexpected format");
+         }
       }
+   exit:
       return r;
    }
 

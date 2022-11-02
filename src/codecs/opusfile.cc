@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -70,7 +70,7 @@ public:
    {
       res->Format = PcmShort;
       res->SampleRate = 48000;
-      res->Channels = 2;
+      res->Channels = op_channel_count(file, -1);
       res->SamplesPerFrame = 0;
    }
 
@@ -78,11 +78,16 @@ public:
    Read(void *buf, int len, error *err)
    {
       int r = 0;
-      int bytesPerPacket = 2 * 2;
-      r = op_read_stereo(file, (opus_int16*)buf, len/bytesPerPacket);
+      int oldChannels = op_channel_count(file, -1);
+      int channels;
+      const int bps = 2;
+      r = op_read(file, (opus_int16*)buf, len/(bps * oldChannels), nullptr);
       if (r < 0)
          ERROR_SET(err, opusfile, r); 
-      r *= bytesPerPacket;
+      channels = op_channel_count(file, -1);
+      r *= bps * channels;
+      if (channels != oldChannels)
+         MetadataChanged = true;
    exit:
       return r;
    }

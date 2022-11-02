@@ -50,6 +50,7 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/codecs/opusfile.cc \
    $(LIBAUDIO_ROOT)src/codecs/flac.cc \
    $(LIBAUDIO_ROOT)src/codec.cc \
+   $(LIBAUDIO_ROOT)src/conversion.cc \
    $(LIBAUDIO_ROOT)src/enum.cc \
    $(LIBAUDIO_ROOT)src/id3.cc \
    $(LIBAUDIO_ROOT)src/microcodec.cc \
@@ -58,6 +59,7 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/dev/mixer.cc \
    $(LIBAUDIO_ROOT)src/dev/wrapper.cc \
    $(LIBAUDIO_ROOT)src/player.cc \
+   $(LIBAUDIO_ROOT)src/resample.cc \
    $(LIBAUDIO_ROOT)src/source.cc
 
 ifneq (, $(filter $(PLATFORM),netbsd sunos openbsd))

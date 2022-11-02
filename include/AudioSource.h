@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2019 Andrew Sveikauskas
+ Copyright (C) 2017, 2019, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +20,8 @@ using common::RefCountable;
 enum Format
 {
    PcmShort, // 16-bit signed, native byte order
+   Pcm24,    // 24-bit signed, native byte order
+   Pcm24Pad, // 24-bit signed, native byte order, expressed as 32 bits
 };
 
 static inline int
@@ -29,6 +31,10 @@ GetBitsPerSample(Format fmt)
    {
    case PcmShort:
       return 16;
+   case Pcm24:
+      return 24;
+   case Pcm24Pad:
+      return 32;
    default:
       return -1;
    }
@@ -41,6 +47,10 @@ GetFormatName(Format fmt)
    {
    case PcmShort:
       return "s16ne";
+   case Pcm24:
+      return "s24ne";
+   case Pcm24Pad:
+      return "s24ne-32";
    default:
       return "Invalid format";
    }

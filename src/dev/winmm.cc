@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017-2018, 2020-2021 Andrew Sveikauskas
+ Copyright (C) 2017-2018, 2020-2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -8,9 +8,11 @@
 
 #include <windows.h>
 #include <mmsystem.h>
+#include <mmreg.h>
 
 #include <common/misc.h>
 #include <common/c++/new.h>
+#include <common/uname.h>
 #include <AudioDevice.h>
 
 #include <string.h>
@@ -99,10 +101,35 @@ public:
       return waveOut;
    }
 
+   void
+   GetSupportedFormats(const Format *&formats, int &n, error *err)
+   {
+      // Don't allow "fancy" formats for WinXP.
+      //
+      int version = 10;
+      struct utsname os_version;
+      uname(&os_version);
+      sscanf(os_version.release, "%d", &version);
+      if (version < 6)
+      {
+         Device::GetSupportedFormats(formats, n, err);
+         return;
+      }
+
+      static const Format workingFormats[] =
+      {
+         PcmShort,
+         Pcm24,
+         Pcm24Pad,
+      };
+      formats = workingFormats;
+      n = ARRAY_SIZE(workingFormats);
+   }
+
    void SetMetadata(const Metadata &metadata, error *err)
    {
       MMRESULT res = 0;
-      WAVEFORMATEX fmt;
+      WAVEFORMATEXTENSIBLE fmt;
       int n = metadata.Channels * GetBitsPerSample(metadata.Format)/8
                                 * metadata.SamplesPerFrame;
 
@@ -120,7 +147,7 @@ public:
       res = waveOutOpen(
          &waveOut,
          deviceId,
-         &fmt,
+         &fmt.Format,
          (DWORD_PTR)event,
          0,
          CALLBACK_EVENT | WAVE_ALLOWSYNC
@@ -214,7 +241,7 @@ public:
    {
       bool r = false;
       MMRESULT res = MMSYSERR_NOERROR;
-      WAVEFORMATEX wfe;
+      WAVEFORMATEXTENSIBLE wfe;
       Metadata md;
 
       md.Format = PcmShort;
@@ -223,7 +250,7 @@ public:
 
       MetadataToWaveFormatEx(md, &wfe);
 
-      res = waveOutOpen(nullptr, deviceId, &wfe, 0, 0, WAVE_FORMAT_QUERY); 
+      res = waveOutOpen(nullptr, deviceId, &wfe.Format, 0, 0, WAVE_FORMAT_QUERY);
       switch (res)
       {
       case MMSYSERR_NOERROR:

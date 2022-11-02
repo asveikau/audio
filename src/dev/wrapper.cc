@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2018 Andrew Sveikauskas
+ Copyright (C) 2017, 2018, 2022 Andrew Sveikauskas
 
  Permission to use, copy, modify, and distribute this software for any
  purpose with or without fee is hereby granted, provided that the above
@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <common/c++/new.h>
+#include <common/misc.h>
 
 using namespace common;
 using namespace audio;
@@ -275,4 +276,12 @@ audio::Device::ProbeSampleRate(int rate, int &suggestion, error *err)
    //
    suggestion = spec.rates[spec.rates.size() - 1];
 exit:;
+}
+
+void
+audio::Device::GetSupportedFormats(const Format *&formats, int &n, error *err)
+{
+   static const Format commonFormats[] = {PcmShort};
+   formats = commonFormats;
+   n = ARRAY_SIZE(commonFormats);
 }

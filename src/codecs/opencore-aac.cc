@@ -202,7 +202,7 @@ public:
 
       r = decoderExt.frameLength;
       currentPos += SamplesToUnits(r, lastHeader.SampleRate);
-      r *= 2 * lastHeader.Channels;
+      r *= (GetBitsPerSample(PcmShort)/8) * lastHeader.Channels;
 
       ReadHeader(readBuffer, err);
      
