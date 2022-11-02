@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <memory>
+#include <string>
 
 using namespace common;
 using namespace audio;

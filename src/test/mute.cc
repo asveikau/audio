@@ -9,6 +9,7 @@
 #include <AudioDevice.h>
 #include <common/logger.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if defined(_WINDOWS)
 int wmain(int argc, wchar_t **argv)
