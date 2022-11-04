@@ -98,6 +98,7 @@ public:
          PcmShort,
          Pcm24,
          Pcm24Pad,
+         PcmFloat,
       };
       formats = workingFormats;
       n = ARRAY_SIZE(workingFormats);

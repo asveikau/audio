@@ -86,7 +86,14 @@ MetadataToWaveFormatEx(const Metadata &md, WAVEFORMATEXTENSIBLE *wfe)
          wfe->dwChannelMask = 0;
       }
 
-      wfe->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+      switch (md.Format)
+      {
+      case PcmFloat:
+         wfe->SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+         break;
+      default:
+         wfe->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+      }
    }
 }
 
