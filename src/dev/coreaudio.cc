@@ -218,6 +218,7 @@ public:
       {
          PcmShort,
          Pcm24,
+         PcmFloat,
       };
       formats = workingFormats;
       n = ARRAY_SIZE(workingFormats);
@@ -236,6 +237,10 @@ public:
       case Pcm24:
          descr.mFormatID = kAudioFormatLinearPCM;
          descr.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger;
+         break;
+      case PcmFloat:
+         descr.mFormatID = kAudioFormatLinearPCM;
+         descr.mFormatFlags = kLinearPCMFormatFlagIsFloat;
          break;
       default:
          ERROR_SET(err, unknown, "Invalid format");
