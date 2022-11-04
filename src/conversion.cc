@@ -89,6 +89,13 @@ struct Pcm24Reader
    }
 };
 
+struct PcmFloatReader
+{
+   static const int Bps = 32;
+   typedef float ReadType;
+   float operator()(const ReadType *p) { return *p; }
+};
+
 struct Pcm24PadReader
 {
    static const int Bps = 32;
@@ -129,6 +136,13 @@ struct Pcm24PadWriter
    {
       *p = q * 8388607.0f;
    }
+};
+
+struct PcmFloatWriter
+{
+   static const int Bps = 32;
+   typedef float WriteType;
+   void operator()(WriteType *p, float q) { *p = q; }
 };
 
 struct Pcm24ToPcm24PadTransform : public Transform
@@ -218,6 +232,7 @@ audio::CreateFormatConversion(
       case PcmShort: goto exit;
       case Pcm24:    r = new (std::nothrow) GenericConverter<Pcm16Reader, Pcm24Writer>(); goto postCtor;
       case Pcm24Pad: r = new (std::nothrow) GenericConverter<Pcm16Reader, Pcm24PadWriter>(); goto postCtor;
+      case PcmFloat: r = new (std::nothrow) GenericConverter<Pcm16Reader, PcmFloatWriter>(); goto postCtor;
       }
       break;
    case Pcm24:
@@ -226,6 +241,7 @@ audio::CreateFormatConversion(
       case PcmShort: r = new (std::nothrow) GenericConverter<Pcm24Reader, Pcm16Writer>(); goto postCtor;
       case Pcm24:    goto exit;
       case Pcm24Pad: r = new (std::nothrow) Pcm24ToPcm24PadTransform(); goto postCtor;
+      case PcmFloat: r = new (std::nothrow) GenericConverter<Pcm24Reader, PcmFloatWriter>(); goto postCtor;
       }
       break;
    case Pcm24Pad:
@@ -234,6 +250,16 @@ audio::CreateFormatConversion(
       case PcmShort: r = new (std::nothrow) GenericConverter<Pcm24PadReader, Pcm16Writer>(); goto postCtor;
       case Pcm24:    r = new (std::nothrow) Pcm24PadToPcm24Transform(); goto postCtor;
       case Pcm24Pad: goto exit;
+      case PcmFloat: r = new (std::nothrow) GenericConverter<Pcm24PadReader, PcmFloatWriter>(); goto postCtor;
+      }
+      break;
+   case PcmFloat:
+      switch (targetFormat)
+      {
+      case PcmShort: r = new (std::nothrow) GenericConverter<PcmFloatReader, Pcm16Writer>(); goto postCtor;
+      case Pcm24:    r = new (std::nothrow) GenericConverter<PcmFloatReader, Pcm24Writer>(); goto postCtor;
+      case Pcm24Pad: r = new (std::nothrow) GenericConverter<PcmFloatReader, Pcm24PadWriter>(); goto postCtor;
+      case PcmFloat: goto exit;
       }
       break;
    }

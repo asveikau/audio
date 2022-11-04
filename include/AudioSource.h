@@ -22,6 +22,7 @@ enum Format
    PcmShort, // 16-bit signed, native byte order
    Pcm24,    // 24-bit signed, native byte order
    Pcm24Pad, // 24-bit signed, native byte order, expressed as 32 bits
+   PcmFloat, // 32-bit float, native byte order
 };
 
 static inline int
@@ -34,6 +35,8 @@ GetBitsPerSample(Format fmt)
    case Pcm24:
       return 24;
    case Pcm24Pad:
+      return 32;
+   case PcmFloat:
       return 32;
    default:
       return -1;
@@ -51,6 +54,8 @@ GetFormatName(Format fmt)
       return "s24ne";
    case Pcm24Pad:
       return "s24ne-32";
+   case PcmFloat:
+      return "float32";
    default:
       return "Invalid format";
    }
