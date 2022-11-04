@@ -209,13 +209,23 @@ audio::Player::NegotiateMetadata(error *err)
          md.SampleRate, suggested
       );
 
-      // Resampler only suports pcm16.
+      // Resampler only suports pcm16 and float.
       //
-      if (targetMd.Format != PcmShort)
+      Format desiredFmt;
+      switch (targetMd.Format)
       {
-         log_printf("Converting to s16ne for resampler");
+      case PcmShort:
+         desiredFmt = PcmShort;
+         break;
+      default:
+         desiredFmt = PcmFloat;
+      }
 
-         transforms.AddFormatConversion(targetMd, PcmShort, err);
+      if (targetMd.Format != desiredFmt)
+      {
+         log_printf("Converting to %s for resampler", GetFormatName(desiredFmt));
+
+         transforms.AddFormatConversion(targetMd, desiredFmt, err);
          ERROR_CHECK(err);
       }
 

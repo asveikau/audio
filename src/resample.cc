@@ -23,15 +23,36 @@ using namespace audio;
 
 namespace {
 
-struct ResamplerTransform : public Transform
+// Some type-polymorphic wrappers.
+int
+speex_resampler_process_interleaved(
+   SpeexResamplerState *st,
+   const float *in,
+   spx_uint32_t *in_len,
+   float *out,
+   spx_uint32_t *out_len)
+{
+   return speex_resampler_process_interleaved_float(st, in, in_len, out, out_len);
+}
+int
+speex_resampler_process_interleaved(
+   SpeexResamplerState *st,
+   const spx_int16_t *in,
+   spx_uint32_t *in_len,
+   spx_int16_t *out,
+   spx_uint32_t *out_len)
+{
+   return speex_resampler_process_interleaved_int(st, in, in_len, out, out_len);
+}
+
+struct ResamplerTransformBase : public Transform
 {
    SpeexResamplerState *resampler;
    Metadata md;
-   std::vector<unsigned char> resampleBuffer;
 
-   ResamplerTransform() : resampler(nullptr) {}
-   ResamplerTransform(const ResamplerTransform & other) = delete;
-   ~ResamplerTransform()
+   ResamplerTransformBase() : resampler(nullptr) {}
+   ResamplerTransformBase(const ResamplerTransformBase & other) = delete;
+   ~ResamplerTransformBase()
    {
       if (resampler)
          speex_resampler_destroy(resampler);
@@ -58,6 +79,12 @@ struct ResamplerTransform : public Transform
       md.SampleRate = newSampleRate;
    exit:;
    }
+};
+
+template<typename T>
+struct ResamplerTransform : public ResamplerTransformBase
+{
+   std::vector<T> resampleBuffer;
 
    void
    TransformAudioPacket(void *&buf, size_t &len, error *err)
@@ -73,11 +100,11 @@ struct ResamplerTransform : public Transform
       int desiredSize = (int64_t)len * rate_out / rate_in;
       desiredSize = (desiredSize + denom - 1) / denom * denom;
 
-      if (desiredSize > resampleBuffer.size())
+      if (desiredSize/sizeof(T) > resampleBuffer.size())
       {
          try
          {
-            resampleBuffer.resize(desiredSize);
+            resampleBuffer.resize(desiredSize/sizeof(T));
          }
          catch (const std::bad_alloc&)
          {
@@ -87,11 +114,11 @@ struct ResamplerTransform : public Transform
 
       outLen = desiredSize / denom;
       speexErr =
-         speex_resampler_process_interleaved_int(
+         speex_resampler_process_interleaved(
             resampler,
-            (const spx_int16_t*)buf,
+            (const T*)buf,
             &inLen,
-            (spx_int16_t*)resampleBuffer.data(),
+            (T*)resampleBuffer.data(),
             &outLen
          );
       if (speexErr)
@@ -115,7 +142,18 @@ audio::CreateResampler(
    error *err
 )
 {
-   auto r = new (std::nothrow) ResamplerTransform();
+   ResamplerTransformBase *r = nullptr;
+   switch (md.Format)
+   {
+   case PcmShort:
+      r = new (std::nothrow) ResamplerTransform<spx_int16_t>();
+      break;
+   case PcmFloat:
+      r = new (std::nothrow) ResamplerTransform<float>();
+      break;
+   default:
+      ERROR_SET(err, unknown, "Unsupported format");
+   }
    if (!r)
       ERROR_SET(err, nomem);
    r->Initialize(md, newSampleRate, err);
