@@ -206,7 +206,7 @@ public:
             r = snd_pcm_open(&pcm, devName.c_str(), SND_PCM_STREAM_PLAYBACK, 0);
             if (r) ERROR_SET(err, unknown, snd_strerror(r));
          }
-         catch(std::bad_alloc)
+         catch(const std::bad_alloc&)
          {
             ERROR_SET(err, nomem);
          }

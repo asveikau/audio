@@ -371,7 +371,7 @@ struct CoreAudioFactory : public Codec
       {
          *src.GetAddressOf() = new CoreAudioSource();
       }
-      catch(std::bad_alloc)
+      catch(const std::bad_alloc &)
       {
          ERROR_SET(err, nomem);
       }
