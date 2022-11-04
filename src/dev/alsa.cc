@@ -88,6 +88,7 @@ public:
       {
          PcmShort,
          Pcm24Pad,
+         PcmFloat,
       };
       formats = workingFormats;
       n = ARRAY_SIZE(workingFormats);
@@ -145,6 +146,9 @@ public:
          break;
       case Pcm24Pad:
          fmt = *(char*)&little_endian ? SND_PCM_FORMAT_S24_LE : SND_PCM_FORMAT_S24_BE;
+         break;
+      case PcmFloat:
+         fmt = *(char*)&little_endian ? SND_PCM_FORMAT_FLOAT_LE : SND_PCM_FORMAT_FLOAT_BE;
          break;
       default:
          ERROR_SET(err, unknown, "Unsupported format");
