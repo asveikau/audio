@@ -246,7 +246,7 @@ audio::Player::NegotiateMetadata(error *err)
       int tB = 0, cB = 0, c2B = 0, c3B;
       auto getBits = [] (int *cache, Format fmt) -> int
       {
-         if (*cache >= 0)
+         if (*cache > 0)
             return *cache;
 
          // Treat 24 bit with pad as 24 bits.
