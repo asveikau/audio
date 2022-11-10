@@ -1349,6 +1349,7 @@ Int PVMP4AudioDecodeFrame(
              * to set these values only during the second call
              * when they change.
              */
+            pVars->ltp_buffer_state = 0;
             pExt->samplingRate =
                 samp_rate_info[pVars->mc_info.sampling_rate_idx].samp_rate;
 
