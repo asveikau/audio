@@ -7,6 +7,7 @@
 */
 
 #include <AudioCodec.h>
+#include <AudioChannelLayout.h>
 
 using namespace common;
 using namespace audio;
@@ -72,6 +73,10 @@ public:
       res->SampleRate = 48000;
       res->Channels = op_channel_count(file, -1);
       res->SamplesPerFrame = 0;
+
+      ApplyChannelLayout(*res, GetCommonOggChannelLayout, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
    int

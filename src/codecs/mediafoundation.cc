@@ -7,6 +7,7 @@
 */
 
 #include <AudioCodec.h>
+#include <AudioChannelLayout.h>
 #include "seekbase.h"
 #include <common/misc.h>
 #include <common/c++/new.h>
@@ -272,6 +273,21 @@ public:
       case WAVE_FORMAT_EXTENSIBLE:
          if (waveFormatLength < sizeof(WAVE_FORMAT_EXTENSIBLE))
             ERROR_SET(err, unknown, "Unexpectedly short format");
+
+         if (waveFormat->nChannels > 2)
+         {
+            try
+            {
+               res->ChannelMap = std::make_shared<std::vector<ChannelInfo>>();
+               ParseWindowsChannelLayout(*(res->ChannelMap), ((WAVEFORMATEXTENSIBLE*)waveFormat)->dwChannelMask, err);
+               ERROR_CHECK(err);
+            }
+            catch (const std::bad_alloc &)
+            {
+               ERROR_SET(err, nomem);
+            }
+         }
+
          if (!memcmp(&((WAVEFORMATEXTENSIBLE*)waveFormat)->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM, sizeof(GUID)))
             break;
       default:

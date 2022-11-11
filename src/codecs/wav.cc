@@ -9,6 +9,7 @@
 #include <common/c++/new.h>
 
 #include <AudioCodec.h>
+#include <AudioChannelLayout.h>
 #include <errno.h>
 #include <string.h>
 
@@ -170,6 +171,20 @@ public:
 
          stream->Seek(offsetToPayload, SEEK_SET, err);
          ERROR_CHECK(err);
+
+         if (read16(&fmt.Channels) > 2)
+         {
+            try
+            {
+               metadata.ChannelMap = std::make_shared<std::vector<ChannelInfo>>();
+               ParseWindowsChannelLayout(*metadata.ChannelMap, read32(&extHeader.ChannelMask), err);
+               ERROR_CHECK(err);
+            }
+            catch (const std::bad_alloc &)
+            {
+               ERROR_SET(err, nomem);
+            }
+         }
 
          if (sizeof(PcmGuid) == sizeof(extHeader.Guid) && !memcmp(extHeader.Guid, PcmGuid, sizeof(PcmGuid)))
             break;

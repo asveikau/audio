@@ -12,6 +12,8 @@
 #include <common/c++/refcount.h>
 #include <common/c++/stream.h>
 #include <functional>
+#include <memory>
+#include <vector>
 
 namespace audio {
 
@@ -61,12 +63,32 @@ GetFormatName(Format fmt)
    }
 }
 
+enum ChannelInfo
+{
+   FrontLeft,
+   FrontRight,
+   FrontCenter,
+   LFE,
+   RearLeft,
+   RearRight,
+   RearCenter,
+   SideLeft,
+   SideRight,
+
+   Unknown = -1,
+};
+
 struct Metadata
 {
    int SampleRate;
    int Channels;
    int SamplesPerFrame; // "frame" in the mp3 sense; a sensible packet size.
    Format Format;
+
+   // This is optional, a hint.  If the device can't honor it, it may
+   // return something different in GetChannelMap().
+   //
+   std::shared_ptr<std::vector<ChannelInfo>> ChannelMap;
 };
 
 struct StreamInfo

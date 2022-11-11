@@ -49,6 +49,7 @@ LIBAUDIO_SRC=\
    $(LIBAUDIO_ROOT)src/codecs/vorbisfile.cc \
    $(LIBAUDIO_ROOT)src/codecs/opusfile.cc \
    $(LIBAUDIO_ROOT)src/codecs/flac.cc \
+   $(LIBAUDIO_ROOT)src/channelmap.cc \
    $(LIBAUDIO_ROOT)src/codec.cc \
    $(LIBAUDIO_ROOT)src/conversion.cc \
    $(LIBAUDIO_ROOT)src/enum.cc \

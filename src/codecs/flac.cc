@@ -7,6 +7,7 @@
 */
 
 #include <AudioCodec.h>
+#include <AudioChannelLayout.h>
 #include <common/misc.h>
 #include <common/logger.h>
 #include <common/c++/new.h>
@@ -131,6 +132,10 @@ public:
       res->SampleRate = FLAC__stream_decoder_get_sample_rate(file);
       res->Channels = FLAC__stream_decoder_get_channels(file);
       res->SamplesPerFrame = 0;
+
+      ApplyChannelLayout(*res, GetCommonWavChannelLayout, err);
+      ERROR_CHECK(err);
+   exit:;
    }
 
    int

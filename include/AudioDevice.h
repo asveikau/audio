@@ -61,6 +61,10 @@ struct Device : public RefCountable
    //
    virtual void SetMetadata(const Metadata &md, error *err) = 0;
 
+   // Optional.  After SetMetadata, confirm the channel map for channels > 2.
+   //
+   virtual int GetChannelMap(ChannelInfo *info, int n, error *err) { return 0; }
+
    // Write samples.
    // @len: Length in bytes
    //

@@ -7,7 +7,9 @@
 */
 
 #include <MicroCodec.h>
+#include <AudioChannelLayout.h>
 #include <common/c++/new.h>
+#include <common/misc.h>
 
 #define PRAGMA_STRUCT_PACKPUSH 1
 #include <ALACDecoder.h>
@@ -15,10 +17,40 @@
 
 namespace {
 
+uint32_t
+read32(const uint32_t *ptr)
+{
+   const unsigned char *p = (const unsigned char *)ptr;
+   return *p |
+          (((uint32_t)p[1]) << 8) |
+          (((uint32_t)p[2]) << 16) |
+          (((uint32_t)p[3]) << 24);
+}
+
+// XXX this is missing from the library header
+//
+#pragma pack(1)
+typedef struct ALACChannelLayoutInfo
+{
+        uint32_t        channelLayoutInfoSize;
+        uint32_t        channelLayoutInfoID;
+        uint32_t        versionFlags;
+        uint32_t        channelLayoutTag;
+        uint32_t        reserved1;
+        uint32_t        reserved2;
+} ALACChannelLayoutInfo;
+#pragma pack()
+
 struct AlacCodec : public audio::MicroCodec
 {
    ALACDecoder decoder;
+   uint32_t channelLayout;
    char desc[128];
+
+   AlacCodec() : channelLayout(0)
+   {
+      desc[0] = 0;
+   }
 
    void
    Initialize(
@@ -32,6 +64,48 @@ struct AlacCodec : public audio::MicroCodec
       status = decoder.Init((void*)config, nbytes);
       if (status)
          ERROR_SET(err, alac, status);
+
+      // This is documented in the Apple repo, but ffmpeg does not write it.
+      // Supposedly the tags are theroetically more broad than this.
+      //
+      if (nbytes > sizeof(ALACSpecificConfig) &&
+          nbytes - sizeof(ALACSpecificConfig) >= sizeof(ALACChannelLayoutInfo))
+      {
+         auto channelHeader =
+            (const ALACChannelLayoutInfo*)((char*)config + sizeof(ALACSpecificConfig));
+         if (read32(&channelHeader->channelLayoutInfoSize) >= sizeof(*channelHeader) &&
+             !memcmp(&channelHeader->channelLayoutInfoID, "chan", 4))
+         {
+            channelLayout = read32(&channelHeader->channelLayoutTag);
+         }
+      }
+
+      // XXX if missing, assume it was there based on channel count.
+      //
+      if (!channelLayout)
+      {
+         switch (decoder.mConfig.numChannels)
+         {
+         case 3:
+            channelLayout = kALACChannelLayoutTag_MPEG_3_0_B;
+            break;
+         case 4:
+            channelLayout = kALACChannelLayoutTag_MPEG_4_0_B;
+            break;
+         case 5:
+            channelLayout = kALACChannelLayoutTag_MPEG_5_0_D;
+            break;
+         case 6:
+            channelLayout = kALACChannelLayoutTag_MPEG_5_1_D;
+            break;
+         case 7:
+            channelLayout = kALACChannelLayoutTag_AAC_6_1;
+            break;
+         case 8:
+            channelLayout = kALACChannelLayoutTag_MPEG_7_1_B;
+            break;
+         }
+      }
 
       // XXX
       switch (decoder.mConfig.bitDepth)
@@ -55,6 +129,9 @@ struct AlacCodec : public audio::MicroCodec
    void
    GetMetadata(audio::Metadata *md, error *err)
    {
+      const audio::ChannelInfo *channels = nullptr;
+      int nc = 0;
+
       md->SampleRate = decoder.mConfig.sampleRate;
       md->Channels = decoder.mConfig.numChannels;
 
@@ -71,6 +148,33 @@ struct AlacCodec : public audio::MicroCodec
       }
 
       md->SamplesPerFrame = decoder.mConfig.frameLength;
+
+#define CASE(NCHANNELS,...)                                   \
+      case NCHANNELS:                                         \
+      {                                                       \
+         static const audio::ChannelInfo arr[] = __VA_ARGS__; \
+         channels = arr;                                      \
+         nc = ARRAY_SIZE(arr);                                \
+      }                                                       \
+      break
+
+      switch (channelLayout)
+      {
+      CASE(kALACChannelLayoutTag_MPEG_3_0_B, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight });
+      CASE(kALACChannelLayoutTag_MPEG_4_0_B, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearCenter });
+      CASE(kALACChannelLayoutTag_MPEG_5_0_D, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearLeft,  audio::RearRight });
+      CASE(kALACChannelLayoutTag_MPEG_5_1_D, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearLeft,  audio::RearRight,  audio::LFE });
+      CASE(kALACChannelLayoutTag_AAC_6_1,    { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearLeft,  audio::RearRight,  audio::RearCenter, audio::LFE });
+      CASE(kALACChannelLayoutTag_MPEG_7_1_B, { audio::FrontCenter, audio::SideLeft,  audio::SideRight,  audio::FrontLeft, audio::FrontRight, audio::RearLeft, audio::RearRight, audio::LFE });
+      }
+
+#undef CASE
+      if (channels && nc)
+      {
+         audio::ApplyChannelLayout(*md, channels, nc, err);
+         ERROR_CHECK(err);
+      }
+
    exit:;
    }
 

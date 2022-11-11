@@ -7,6 +7,7 @@
 */
 
 #include <AudioCodec.h>
+#include <AudioChannelLayout.h>
 #include <common/misc.h>
 #include <common/size.h>
 
@@ -78,6 +79,8 @@ public:
       res->Channels = p->channels;
       res->SamplesPerFrame = 0;
 
+      ApplyChannelLayout(*res, GetCommonOggChannelLayout, err);
+      ERROR_CHECK(err);
    exit:;
    }
 
