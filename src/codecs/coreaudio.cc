@@ -9,9 +9,12 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 #include <AudioCodec.h>
+#include <AudioChannelLayout.h>
+
 #include "seekbase.h"
 
 #include <common/c++/new.h>
+#include <common/misc.h>
 
 using namespace common;
 using namespace audio;
@@ -161,10 +164,202 @@ public:
 
    void GetMetadata(Metadata *res, error *err)
    {
+      AudioChannelLayout *layout = nullptr;
+
       res->Format = format;
       res->SampleRate = sampleRate;
       res->Channels = channels;
       res->SamplesPerFrame = 0;
+
+      if (channels > 2)
+      {
+         OSStatus status = 0;
+         UInt32 len = 0;
+
+         len = sizeof(*layout);
+         layout = (AudioChannelLayout*)malloc(len);
+         if (!layout)
+            ERROR_SET(err, nomem);
+
+         status = ExtAudioFileGetProperty(
+            extFile,
+            kExtAudioFileProperty_FileChannelLayout,
+            &len,
+            layout
+         );
+         if (status) ERROR_SET(err, osstatus, status);
+
+         if (len > sizeof(*layout))
+         {
+            void *ptr = realloc(layout, len);
+            if (!ptr)
+               ERROR_SET(err, nomem);
+            layout = (AudioChannelLayout*)ptr;
+
+            status = ExtAudioFileGetProperty(
+               extFile,
+               kExtAudioFileProperty_FileChannelLayout,
+               &len,
+               layout
+            );
+            if (status) ERROR_SET(err, osstatus, status);
+         }
+
+         if (layout->mChannelLayoutTag == kAudioChannelLayoutTag_UseChannelBitmap)
+         {
+            try
+            {
+               res->ChannelMap = std::make_shared<std::vector<ChannelInfo>>();
+               ParseWindowsChannelLayout(*res->ChannelMap, layout->mChannelBitmap, err);
+               ERROR_CHECK(err);
+            }
+            catch (const std::bad_alloc &)
+            {
+               ERROR_SET(err, nomem);
+            }
+         }
+         else if (layout->mChannelLayoutTag == kAudioChannelLayoutTag_UseChannelDescriptions)
+         {
+            std::vector<ChannelInfo> mapping;
+
+            for (auto i=0; i<layout->mNumberChannelDescriptions; ++i)
+            {
+               auto label = layout->mChannelDescriptions[i].mChannelLabel;
+               static const ChannelInfo earlyMappings[] =
+               {
+                  FrontLeft,
+                  FrontRight,
+                  FrontCenter,
+                  LFE,
+                  RearLeft,
+                  RearRight,
+                  Unknown, // LeftCenter,
+                  Unknown, // RightCenter
+                  RearCenter,
+                  SideLeft,
+                  SideRight,
+                  Unknown, // BackTopCenter
+                  Unknown, // TopFrontLeft
+                  Unknown, // TopFrontCenter
+                  Unknown, // TopFrontRight
+                  Unknown, // TopRearLeft
+                  Unknown, // TopRearCenter
+                  Unknown, // TopRearRight
+               };
+               ChannelInfo info = Unknown;
+               if (label > 0 && label < ARRAY_SIZE(earlyMappings))
+                  info = earlyMappings[label];
+               else
+               {
+                  switch (label)
+                  {
+                  case kAudioChannelLabel_RearSurroundLeft:
+                  case kAudioChannelLabel_RearSurroundRight:
+                  case kAudioChannelLabel_LeftWide:
+                  case kAudioChannelLabel_RightWide:
+                  case kAudioChannelLabel_LFE2:
+                  case kAudioChannelLabel_LeftTotal:
+                  case kAudioChannelLabel_RightTotal:
+                  case kAudioChannelLabel_HearingImpaired:
+                  case kAudioChannelLabel_Narration:
+                  case kAudioChannelLabel_Mono:
+                  case kAudioChannelLabel_DialogCentricMix:
+                  case kAudioChannelLabel_CenterSurroundDirect:
+                  case kAudioChannelLabel_Haptic:
+                  case kAudioChannelLabel_Ambisonic_W:
+                  case kAudioChannelLabel_Ambisonic_X:
+                  case kAudioChannelLabel_Ambisonic_Y:
+                  case kAudioChannelLabel_Ambisonic_Z:
+                  case kAudioChannelLabel_MS_Mid:
+                  case kAudioChannelLabel_MS_Side:
+                  case kAudioChannelLabel_XY_X:
+                  case kAudioChannelLabel_XY_Y:
+                  case kAudioChannelLabel_HeadphonesLeft:
+                  case kAudioChannelLabel_HeadphonesRight:
+                  case kAudioChannelLabel_ClickTrack:
+                  case kAudioChannelLabel_ForeignLanguage:
+                  case kAudioChannelLabel_Discrete:
+                     break;
+                  }
+
+                  if (label >= kAudioChannelLabel_Discrete_0 && label <= kAudioChannelLabel_Discrete_65535)
+                     ;
+               }
+
+               try
+               {
+                  mapping.push_back(info);
+               }
+               catch (const std::bad_alloc &)
+               {
+                  ERROR_SET(err, nomem);
+               }
+            }
+
+            if (mapping.size())
+            {
+               try
+               {
+                  res->ChannelMap = std::make_shared<std::vector<ChannelInfo>>();
+                  *res->ChannelMap = std::move(mapping);
+               }
+               catch (const std::bad_alloc &)
+               {
+                  ERROR_SET(err, nomem);
+               }
+            }
+         }
+         else
+         {
+            // XXX: duplicated from ALAC
+            const ChannelInfo *channels = nullptr;
+            int nc = 0;
+
+#define CASE(NCHANNELS,...)                                   \
+            case NCHANNELS:                                         \
+            {                                                       \
+               static const audio::ChannelInfo arr[] = __VA_ARGS__; \
+               channels = arr;                                      \
+               nc = ARRAY_SIZE(arr);                                \
+            }                                                       \
+            break
+
+            switch (layout->mChannelLayoutTag)
+            {
+            // From ALAC:
+            //
+            CASE(kAudioChannelLayoutTag_MPEG_3_0_B, { FrontCenter, FrontLeft, FrontRight });
+            CASE(kAudioChannelLayoutTag_MPEG_4_0_B, { FrontCenter, FrontLeft, FrontRight, RearCenter });
+            CASE(kAudioChannelLayoutTag_MPEG_5_0_D, { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight });
+            CASE(kAudioChannelLayoutTag_MPEG_5_1_D, { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight,  LFE });
+            CASE(kAudioChannelLayoutTag_AAC_6_1,    { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight,  RearCenter, LFE });
+            CASE(kAudioChannelLayoutTag_MPEG_7_1_B, { FrontCenter, SideLeft,  SideRight,  FrontLeft, FrontRight, RearLeft, RearRight, LFE });
+
+            // Other interesting ones:
+            //
+            CASE(kAudioChannelLayoutTag_MPEG_3_0_A, { FrontLeft, FrontRight, FrontCenter });
+            CASE(kAudioChannelLayoutTag_MPEG_4_0_A, { FrontLeft, FrontRight, FrontCenter, RearCenter });
+            CASE(kAudioChannelLayoutTag_MPEG_5_0_A, { FrontLeft, FrontRight, FrontCenter, RearLeft,  RearRight });
+            CASE(kAudioChannelLayoutTag_MPEG_5_0_B, { FrontLeft, FrontRight, RearLeft,  RearRight, FrontCenter });
+            CASE(kAudioChannelLayoutTag_MPEG_5_0_C, { FrontLeft, FrontCenter, FrontRight, RearLeft,  RearRight });
+            CASE(kAudioChannelLayoutTag_MPEG_5_1_A, { FrontLeft, FrontRight, FrontCenter, LFE, RearLeft, RearRight });
+            CASE(kAudioChannelLayoutTag_MPEG_5_1_B, { FrontLeft, FrontRight, RearLeft, RearRight, FrontCenter, LFE });
+            CASE(kAudioChannelLayoutTag_MPEG_5_1_C, { FrontLeft, FrontCenter, FrontRight, RearLeft, RearRight, LFE });
+            CASE(kAudioChannelLayoutTag_MPEG_6_1_A, { FrontLeft, FrontRight, FrontCenter, LFE, RearLeft, RearRight, RearCenter });
+            CASE(kAudioChannelLayoutTag_MPEG_7_1_A, { FrontLeft, FrontRight, FrontCenter, LFE, RearLeft, RearRight, SideLeft, SideRight });
+            }
+
+#undef CASE
+            if (channels && nc)
+            {
+               ApplyChannelLayout(*res, channels, nc, err);
+               ERROR_CHECK(err);
+            }
+         }
+      }
+
+   exit:
+      free(layout);
    }
 
    int Read(void *buf, int len, error *err)
