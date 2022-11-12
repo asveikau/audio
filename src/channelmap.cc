@@ -195,16 +195,18 @@ exit:;
 
 enum
 {
-   kAudioChannelLayoutTag_MPEG_3_0_A = (113U<<16) | 3,
-   kAudioChannelLayoutTag_MPEG_4_0_A = (115U<<16) | 4,
-   kAudioChannelLayoutTag_MPEG_5_0_A = (117U<<16) | 5,
-   kAudioChannelLayoutTag_MPEG_5_0_B = (118U<<16) | 5,
-   kAudioChannelLayoutTag_MPEG_5_0_C = (119U<<16) | 5,
-   kAudioChannelLayoutTag_MPEG_5_1_A = (121U<<16) | 6,
-   kAudioChannelLayoutTag_MPEG_5_1_B = (122U<<16) | 6,
-   kAudioChannelLayoutTag_MPEG_5_1_C = (123U<<16) | 6,
-   kAudioChannelLayoutTag_MPEG_6_1_A = (125U<<16) | 7,
-   kAudioChannelLayoutTag_MPEG_7_1_A = (126U<<16) | 8,
+   kAudioChannelLayoutTag_Quadraphonic = (108U<<16) | 4,
+   kAudioChannelLayoutTag_Pentagonal   = (109U<<16) | 5,
+   kAudioChannelLayoutTag_MPEG_3_0_A   = (113U<<16) | 3,
+   kAudioChannelLayoutTag_MPEG_4_0_A   = (115U<<16) | 4,
+   kAudioChannelLayoutTag_MPEG_5_0_A   = (117U<<16) | 5,
+   kAudioChannelLayoutTag_MPEG_5_0_B   = (118U<<16) | 5,
+   kAudioChannelLayoutTag_MPEG_5_0_C   = (119U<<16) | 5,
+   kAudioChannelLayoutTag_MPEG_5_1_A   = (121U<<16) | 6,
+   kAudioChannelLayoutTag_MPEG_5_1_B   = (122U<<16) | 6,
+   kAudioChannelLayoutTag_MPEG_5_1_C   = (123U<<16) | 6,
+   kAudioChannelLayoutTag_MPEG_6_1_A   = (125U<<16) | 7,
+   kAudioChannelLayoutTag_MPEG_7_1_A   = (126U<<16) | 8,
 };
 #endif
 
@@ -213,8 +215,10 @@ namespace {
 #define DECLARE_VALUE(FORMAT, ...) \
 static const ChannelInfo FORMAT##_Values[] = __VA_ARGS__
 
+//
 // These are from ALAC:
 //
+
 DECLARE_VALUE(MPEG_3_0_B, { FrontCenter, FrontLeft, FrontRight });
 DECLARE_VALUE(MPEG_4_0_B, { FrontCenter, FrontLeft, FrontRight, RearCenter });
 DECLARE_VALUE(MPEG_5_0_D, { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight });
@@ -222,8 +226,14 @@ DECLARE_VALUE(MPEG_5_1_D, { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearR
 DECLARE_VALUE(AAC_6_1,    { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight,  RearCenter, LFE });
 DECLARE_VALUE(MPEG_7_1_B, { FrontCenter, SideLeft,  SideRight,  FrontLeft, FrontRight, RearLeft,   RearRight, LFE });
 
+//
 // Other interesting ones:
 //
+
+DECLARE_VALUE(Quadraphonic, { FrontLeft, FrontRight, RearLeft, RearRight });
+// Same as mpeg5.0b
+DECLARE_VALUE(Pentagonal,   { FrontLeft, FrontRight, RearLeft, RearRight, FrontCenter });
+
 DECLARE_VALUE(MPEG_3_0_A, { FrontLeft, FrontRight,  FrontCenter });
 DECLARE_VALUE(MPEG_4_0_A, { FrontLeft, FrontRight,  FrontCenter, RearCenter });
 DECLARE_VALUE(MPEG_5_0_A, { FrontLeft, FrontRight,  FrontCenter, RearLeft,  RearRight });
@@ -253,6 +263,9 @@ static AppleChannelLayoutMapping AppleMappings[] =
    REF_VALUE(MPEG_5_1_D),
    REF_VALUE(AAC_6_1),
    REF_VALUE(MPEG_7_1_B),
+
+   REF_VALUE(Quadraphonic),
+   REF_VALUE(Pentagonal),
 
    REF_VALUE(MPEG_3_0_A),
    REF_VALUE(MPEG_4_0_A),
