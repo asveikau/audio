@@ -129,9 +129,6 @@ struct AlacCodec : public audio::MicroCodec
    void
    GetMetadata(audio::Metadata *md, error *err)
    {
-      const audio::ChannelInfo *channels = nullptr;
-      int nc = 0;
-
       md->SampleRate = decoder.mConfig.sampleRate;
       md->Channels = decoder.mConfig.numChannels;
 
@@ -149,29 +146,9 @@ struct AlacCodec : public audio::MicroCodec
 
       md->SamplesPerFrame = decoder.mConfig.frameLength;
 
-#define CASE(NCHANNELS,...)                                   \
-      case NCHANNELS:                                         \
-      {                                                       \
-         static const audio::ChannelInfo arr[] = __VA_ARGS__; \
-         channels = arr;                                      \
-         nc = ARRAY_SIZE(arr);                                \
-      }                                                       \
-      break
-
-      switch (channelLayout)
+      if (channelLayout)
       {
-      CASE(kALACChannelLayoutTag_MPEG_3_0_B, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight });
-      CASE(kALACChannelLayoutTag_MPEG_4_0_B, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearCenter });
-      CASE(kALACChannelLayoutTag_MPEG_5_0_D, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearLeft,  audio::RearRight });
-      CASE(kALACChannelLayoutTag_MPEG_5_1_D, { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearLeft,  audio::RearRight,  audio::LFE });
-      CASE(kALACChannelLayoutTag_AAC_6_1,    { audio::FrontCenter, audio::FrontLeft, audio::FrontRight, audio::RearLeft,  audio::RearRight,  audio::RearCenter, audio::LFE });
-      CASE(kALACChannelLayoutTag_MPEG_7_1_B, { audio::FrontCenter, audio::SideLeft,  audio::SideRight,  audio::FrontLeft, audio::FrontRight, audio::RearLeft, audio::RearRight, audio::LFE });
-      }
-
-#undef CASE
-      if (channels && nc)
-      {
-         audio::ApplyChannelLayout(*md, channels, nc, err);
+         audio::ApplyAppleChannelLayout(*md, channelLayout, err);
          ERROR_CHECK(err);
       }
 

@@ -58,6 +58,12 @@ ApplyChannelLayout(
    error *err
 );
 
+void
+ApplyWindowsChannelLayout(Metadata &md, uint32_t mask, error *err);
+
+void
+ApplyAppleChannelLayout(Metadata &md, uint32_t tag, error *err);
+
 } // namespace
 
 #endif

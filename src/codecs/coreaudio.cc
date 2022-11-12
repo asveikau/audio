@@ -311,50 +311,8 @@ public:
          }
          else
          {
-            // XXX: duplicated from ALAC
-            const ChannelInfo *channels = nullptr;
-            int nc = 0;
-
-#define CASE(NCHANNELS,...)                                   \
-            case NCHANNELS:                                         \
-            {                                                       \
-               static const audio::ChannelInfo arr[] = __VA_ARGS__; \
-               channels = arr;                                      \
-               nc = ARRAY_SIZE(arr);                                \
-            }                                                       \
-            break
-
-            switch (layout->mChannelLayoutTag)
-            {
-            // From ALAC:
-            //
-            CASE(kAudioChannelLayoutTag_MPEG_3_0_B, { FrontCenter, FrontLeft, FrontRight });
-            CASE(kAudioChannelLayoutTag_MPEG_4_0_B, { FrontCenter, FrontLeft, FrontRight, RearCenter });
-            CASE(kAudioChannelLayoutTag_MPEG_5_0_D, { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight });
-            CASE(kAudioChannelLayoutTag_MPEG_5_1_D, { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight,  LFE });
-            CASE(kAudioChannelLayoutTag_AAC_6_1,    { FrontCenter, FrontLeft, FrontRight, RearLeft,  RearRight,  RearCenter, LFE });
-            CASE(kAudioChannelLayoutTag_MPEG_7_1_B, { FrontCenter, SideLeft,  SideRight,  FrontLeft, FrontRight, RearLeft, RearRight, LFE });
-
-            // Other interesting ones:
-            //
-            CASE(kAudioChannelLayoutTag_MPEG_3_0_A, { FrontLeft, FrontRight, FrontCenter });
-            CASE(kAudioChannelLayoutTag_MPEG_4_0_A, { FrontLeft, FrontRight, FrontCenter, RearCenter });
-            CASE(kAudioChannelLayoutTag_MPEG_5_0_A, { FrontLeft, FrontRight, FrontCenter, RearLeft,  RearRight });
-            CASE(kAudioChannelLayoutTag_MPEG_5_0_B, { FrontLeft, FrontRight, RearLeft,  RearRight, FrontCenter });
-            CASE(kAudioChannelLayoutTag_MPEG_5_0_C, { FrontLeft, FrontCenter, FrontRight, RearLeft,  RearRight });
-            CASE(kAudioChannelLayoutTag_MPEG_5_1_A, { FrontLeft, FrontRight, FrontCenter, LFE, RearLeft, RearRight });
-            CASE(kAudioChannelLayoutTag_MPEG_5_1_B, { FrontLeft, FrontRight, RearLeft, RearRight, FrontCenter, LFE });
-            CASE(kAudioChannelLayoutTag_MPEG_5_1_C, { FrontLeft, FrontCenter, FrontRight, RearLeft, RearRight, LFE });
-            CASE(kAudioChannelLayoutTag_MPEG_6_1_A, { FrontLeft, FrontRight, FrontCenter, LFE, RearLeft, RearRight, RearCenter });
-            CASE(kAudioChannelLayoutTag_MPEG_7_1_A, { FrontLeft, FrontRight, FrontCenter, LFE, RearLeft, RearRight, SideLeft, SideRight });
-            }
-
-#undef CASE
-            if (channels && nc)
-            {
-               ApplyChannelLayout(*res, channels, nc, err);
-               ERROR_CHECK(err);
-            }
+            ApplyAppleChannelLayout(*res, layout->mChannelLayoutTag, err);
+            ERROR_CHECK(err);
          }
       }
 
