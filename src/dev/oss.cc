@@ -101,6 +101,65 @@ public:
       n = ARRAY_SIZE(workingFormats);
    }
 
+#if defined(SNDCTL_DSP_GET_CHNORDER)
+   int GetChannelMap(ChannelInfo *info, int n, error *err)
+   {
+      uint64_t map = 0;
+      int r = 0;
+      if (ioctl(fd, SNDCTL_DSP_GET_CHNORDER, &map))
+         ERROR_SET(err, errno, errno);
+      for (int i=0; i<16; ++i)
+      {
+         ChannelInfo chan = Unknown;
+         int dev = (map) & 0xf;
+         map >>= 4;
+
+         if (!dev)
+            break;
+
+         if (!n)
+            ERROR_SET(err, unknown, "Out of buffer space");
+
+         switch (dev)
+         {
+         case CHID_L:
+            chan = FrontLeft;
+            break;
+         case CHID_R:
+            chan = FrontRight;
+            break;
+         case CHID_C:
+            chan = FrontCenter;
+            break;
+         case CHID_LFE:
+            chan = LFE;
+            break;
+         case CHID_LS:
+            chan = SideLeft;
+            break;
+         case CHID_RS:
+            chan = SideRight;
+            break;
+         case CHID_LR:
+            chan = RearLeft;
+            break;
+         case CHID_RR:
+            chan = RearRight;
+            break;
+         }
+
+         *info++ = chan;
+         --n;
+         ++r;
+      }
+   exit:
+      if (ERROR_FAILED(err))
+         r = 0;
+      return r;
+   }
+
+#endif
+
    void
    GetSupportedSampleRates(SampleRateSupport &spec, error *err)
    {
