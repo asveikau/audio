@@ -94,6 +94,70 @@ public:
       n = ARRAY_SIZE(workingFormats);
    }
 
+   int GetChannelMap(ChannelInfo *info, int n, error *err)
+   {
+      int r = 0;
+      auto chmap = snd_pcm_get_chmap(pcm);
+      if (!chmap)
+         goto exit;
+
+      if (n < chmap->channels)
+         ERROR_SET(err, unknown, "Not enough buffer space");
+
+      r = chmap->channels;
+
+      for (int i=0; i<r; ++i)
+      {
+         ChannelInfo ci = Unknown;
+#define CASE(ALSA, MINE)  case SND_CHMAP_##ALSA: ci = MINE; break
+         switch (chmap->pos[i])
+         {
+         CASE(FL,   FrontLeft);
+         CASE(FR,   FrontRight);
+         CASE(RL,   RearLeft);
+         CASE(RR,   RearRight);
+         CASE(FC,   FrontCenter);
+         CASE(LFE,  LFE);
+         CASE(SL,   SideLeft);
+         CASE(SR,   SideRight);
+         CASE(RC,   RearCenter);
+#if 0
+         CASE(FLC,  FrontLeftCenter);
+         CASE(FRC,  FrontRightCenter);
+         CASE(RLC,  RearLeftCenter);
+         CASE(RRC,  RearRightCenter);
+         CASE(FLW,  FrontLeftWide);
+         CASE(FRW,  FrontRightWide);
+         CASE(FLH,  FrontLeftHigh);
+         CASE(FCH,  FrontCenterHigh);
+         CASE(FRH,  FrontRightHigh);
+         CASE(TC,   TopCenter);
+         CASE(TFL,  TopFrontLeft);
+         CASE(TFR,  TopFrontRight);
+         CASE(TFC,  TopFrontCenter);
+         CASE(TRL,  TopRearLeft);
+         CASE(TRR,  TopRearRight);
+         CASE(TRC,  TopRearCenter);
+         CASE(TFLC, TopFrontLeftCenter);
+         CASE(TFRC, TopFrontRightCenter);
+         CASE(TSL,  TopSideLeft);
+         CASE(TSR,  TopSideRight);
+         CASE(LLFE, LeftLFE);
+         CASE(RLFE, RightLFE);
+         CASE(BC,   BottomCenter);
+         CASE(BLC,  BottomLeftCenter);
+         CASE(BRC,  BottomRightCenter);
+#endif
+         }
+#undef CASE
+         info[i] = ci;
+      }
+
+   exit:
+      free(chmap);
+      return r;
+   }
+
    void SetMetadata(const Metadata &md, error *err)
    {
       snd_pcm_hw_params_t *params = nullptr;
