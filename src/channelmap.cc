@@ -512,6 +512,7 @@ audio::CreateChannelMapTransform(
 )
 {
    ChannelMapTransform *r = nullptr;
+   r = new (std::nothrow) ChannelMapTransform();
    if (!r)
       ERROR_SET(err, nomem);
    r->Initialize(format, sourceChannels, nSourceChannels, targetChannels, nTargetChannels, err);
