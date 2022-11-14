@@ -295,6 +295,30 @@ audio::Player::NegotiateMetadata(error *err)
    dev->SetMetadata(targetMd, err);
    ERROR_CHECK(err);
 
+   if (targetMd.ChannelMap.get() && targetMd.ChannelMap->size())
+   {
+      std::unique_ptr<ChannelInfo[]> devChannelMap(new (std::nothrow) ChannelInfo[targetMd.Channels]);
+      int n;
+
+      if (!devChannelMap.get())
+         ERROR_SET(err, nomem);
+
+      n = dev->GetChannelMap(devChannelMap.get(), targetMd.Channels, err);
+      if (ERROR_FAILED(err) || n <= 0)
+      {
+         log_printf("Warning: Device did not provide channel map.");
+      }
+      else if (n != targetMd.Channels || memcmp(targetMd.ChannelMap->data(), devChannelMap.get(), targetMd.Channels*sizeof(*devChannelMap.get())))
+      {
+         transforms.AddChannelMapTransform(targetMd, devChannelMap.get(), n, err);
+         ERROR_CHECK(err);
+      }
+   }
+   else if (targetMd.Channels > 2)
+   {
+      log_printf("Warning: %d channels, but codec did not provide channel map.", targetMd.Channels);
+   }
+
    newBufsz = md.SamplesPerFrame * md.Channels *
               GetBitsPerSample(md.Format) / 8;
    if (buffer && newBufsz < bufsz)

@@ -7,8 +7,11 @@
 */
 
 #include "AudioChannelLayout.h"
+#include "AudioTransform.h"
 
 #include <common/misc.h>
+
+#include <unordered_map>
 
 using namespace audio;
 
@@ -305,4 +308,218 @@ audio::ApplyAppleChannelLayout(Metadata &md, uint32_t tag, error *err)
       ERROR_CHECK(err);
    }
 exit:;
+}
+
+namespace {
+
+struct ChannelMapTransform : public Transform
+{
+   const void *ZeroBuf;
+   int Bps;
+
+   struct Op
+   {
+      enum
+      {
+         Zero,
+         Move,
+      } Action;
+      int SrcIndex;
+      int DstIndex;
+      int Length;
+      int ScratchOffset;
+
+      Op(int idx) :
+         Action(Zero),
+         SrcIndex(idx),
+         DstIndex(idx),
+         Length(1),
+         ScratchOffset(-1)
+      {}
+   };
+
+   std::vector<Op> ops;
+   std::vector<unsigned char> scratchBuf;
+
+   int nsc, ntc;
+
+   virtual ~ChannelMapTransform()
+   {
+   }
+
+   void
+   Initialize(
+      Format format,
+      const ChannelInfo *sc, int nsc,
+      const ChannelInfo *tc, int ntc,
+      error *err
+   )
+   {
+      this->nsc = nsc;
+      this->ntc = ntc;
+
+      Bps = GetBitsPerSample(format)/8;
+      switch (format)
+      {
+      case PcmFloat:
+         {
+            static const float zero = 0.0f;
+            ZeroBuf = &zero;
+         }
+         break;
+      default:
+         ZeroBuf = nullptr;
+      }
+
+      try
+      {
+         std::unordered_map<int /*really ChannelInfo*/, int> srcIndex;
+         int scratchLen = 0;
+         for (int i=0; i<nsc; ++i)
+            srcIndex[(int)sc[i]] = i;
+         for (int i=0; i<ntc; ++i)
+         {
+            Op op(i);
+
+            auto key = tc[i];
+            auto srcKey = srcIndex.find((int)key);
+            if (srcKey != srcIndex.end())
+            {
+               auto j = srcKey->second;
+               if (i == j && nsc >= ntc)
+                  continue;
+               op.Action = Op::Move;
+               op.SrcIndex = j;
+               op.ScratchOffset = scratchLen++;
+               for (auto &oldOp : ops)
+               {
+                  if (oldOp.Action == Op::Move &&
+                      oldOp.SrcIndex + oldOp.Length == op.SrcIndex &&
+                      oldOp.DstIndex + oldOp.Length == op.DstIndex)
+                  {
+                     oldOp.Length += op.Length;
+                     continue;
+                  }
+               }
+            }
+            if (op.Action == Op::Zero &&
+                ops.size() &&
+                ops[ops.size()-1].Action == Op::Zero &&
+                ops[ops.size()-1].DstIndex + ops[ops.size()-1].Length == i)
+            {
+               ops[ops.size()-1].Length++;
+               continue;
+            }
+            ops.push_back(op);
+         }
+         if (nsc >= ntc)
+            scratchBuf.resize(scratchLen * Bps);
+      }
+      catch (const std::bad_alloc &)
+      {
+         ERROR_SET(err, nomem);
+      }
+   exit:;
+   }
+
+   void
+   TransformAudioPacket(void *&buf, size_t &len, error *err)
+   {
+      auto src = (const unsigned char*)buf;
+      size_t srclen = len;
+      unsigned char *dst, *dstStart;
+      bool grow = false;
+
+      if (ntc > nsc)
+      {
+         // Need to grow buffer;
+         //
+         size_t dstlen = len / nsc * ntc * Bps;
+         try
+         {
+            scratchBuf.resize(dstlen);
+         }
+         catch (const std::bad_alloc &)
+         {
+            ERROR_SET(err, nomem);
+         }
+         dst = scratchBuf.data();
+         grow = true;
+      }
+      else
+      {
+         dst = (unsigned char*)buf;
+      }
+      dstStart = dst;
+
+      while (srclen)
+      {
+         if (!grow)
+         {
+            for (auto &op : ops)
+            {
+               if (op.Action == Op::Move)
+                  memcpy(scratchBuf.data() + op.ScratchOffset * Bps, src + op.SrcIndex*Bps, op.Length * Bps);
+            }
+         }
+         for (auto &op : ops)
+         {
+            switch (op.Action)
+            {
+            case Op::Zero:
+               if (ZeroBuf)
+               {
+                  for (int i=0; i<op.Length; ++i)
+                  {
+                     memcpy(dst + (op.DstIndex + i)*Bps, ZeroBuf, Bps);
+                  }
+               }
+               else
+                  memset(dst + op.DstIndex * Bps, 0, op.Length * Bps);
+               break;
+            case Op::Move:
+               memcpy(
+                  dst + op.DstIndex * Bps,
+                  grow
+                      ? src + op.SrcIndex * Bps
+                      : scratchBuf.data() + op.ScratchOffset * Bps,
+                  op.Length * Bps
+               );
+               break;
+            }
+         }
+         src += nsc * Bps;
+         srclen -= nsc * Bps;
+         dst += ntc * Bps;
+      }
+
+      buf = dstStart;
+      len = dst - dstStart;
+   exit:;
+   }
+};
+
+} // end namespace
+
+Transform*
+audio::CreateChannelMapTransform(
+   Format format,
+   const ChannelInfo *sourceChannels,
+   int nSourceChannels,
+   const ChannelInfo *targetChannels,
+   int nTargetChannels,
+   error *err
+)
+{
+   ChannelMapTransform *r = nullptr;
+   if (!r)
+      ERROR_SET(err, nomem);
+   r->Initialize(format, sourceChannels, nSourceChannels, targetChannels, nTargetChannels, err);
+   if (ERROR_FAILED(err))
+   {
+      delete r;
+      r = nullptr;
+   }
+exit:
+   return r;
 }

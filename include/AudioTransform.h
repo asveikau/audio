@@ -42,6 +42,16 @@ CreateFormatConversion(
    error *err
 );
 
+Transform*
+CreateChannelMapTransform(
+   Format format,
+   const ChannelInfo *sourceChannels,
+   int nSourceChannels,
+   const ChannelInfo *targetChannels,
+   int nTargetChannels,
+   error *err
+);
+
 //
 // Convenience methods for maintaining a stack of transforms.
 //
@@ -98,6 +108,53 @@ struct AudioTransformStack
          ERROR_SET(err, nomem);
       }
    exit:;
+   }
+
+   inline void
+   AddChannelMapTransform(
+      Format format,
+      const ChannelInfo *sourceChannels,
+      int nSourceChannels,
+      const ChannelInfo *targetChannels,
+      int nTargetChannels,
+      error *err
+   )
+   {
+      std::unique_ptr<Transform> trans(CreateChannelMapTransform(
+         format,
+         sourceChannels, nSourceChannels,
+         targetChannels, nTargetChannels,
+         err
+      ));
+      ERROR_CHECK(err);
+      try
+      {
+         transforms.push_back(std::move(trans));
+      }
+      catch (const std::bad_alloc &)
+      {
+         ERROR_SET(err, nomem);
+      }
+   exit:;
+   }
+
+   inline void
+   AddChannelMapTransform(
+      Metadata &md,
+      const ChannelInfo *targetChannels,
+      int nTargetChannels,
+      error *err
+   )
+   {
+      if (md.ChannelMap.get())
+      {
+         AddChannelMapTransform(
+            md.Format,
+            md.ChannelMap->data(), md.ChannelMap->size(),
+            targetChannels, nTargetChannels,
+            err
+         );
+      }
    }
 };
 
