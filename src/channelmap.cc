@@ -184,7 +184,7 @@ audio::ChannelInfoToWindowsChannelBit(ChannelInfo info)
 ChannelInfo
 audio::WindowsChannelBitToChannelInfo(int bitno)
 {
-   if (bitno > 0 && bitno < ARRAY_SIZE(WindowsMappings))
+   if (bitno >= 0 && bitno < ARRAY_SIZE(WindowsMappings))
       return WindowsMappings[bitno];
    return Unknown;
 }
