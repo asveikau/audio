@@ -40,6 +40,7 @@ class WinMmDev : public Device
    HANDLE event;
    WAVEHDR buffers[3];
    int iBuffer;
+   DWORD dwChannelMask;
 
    void CleanupOld(void)
    {
@@ -82,7 +83,8 @@ public:
         descr(descr_),
         devName(nullptr),
         event(nullptr),
-        iBuffer(-1)
+        iBuffer(-1),
+        dwChannelMask(0)
    {
       memset(&buffers, 0, sizeof(buffers));
    }
@@ -144,6 +146,7 @@ public:
       }
 
       MetadataToWaveFormatEx(metadata, &fmt);
+      dwChannelMask = fmt.dwChannelMask;
 
       res = waveOutOpen(
          &waveOut,
@@ -171,6 +174,11 @@ public:
       }
 
    exit:;
+   }
+
+   int GetChannelMap(ChannelInfo *info, int n, error *err)
+   {
+      return windows::GetChannelMap(dwChannelMask, info, n, err);
    }
 
    void Write(const void *buf, int len, error *err)

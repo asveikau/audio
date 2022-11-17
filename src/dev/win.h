@@ -117,4 +117,26 @@ skipDefaults:
    }
 }
 
+static inline int
+GetChannelMap(DWORD dwChannelMask, ChannelInfo *info, int n, error *err)
+{
+   int r = 0;
+   for (int i = 0; i<sizeof(dwChannelMask)*8; ++i)
+   {
+      if (((1U << i) & dwChannelMask))
+      {
+         if (!n)
+            ERROR_SET(err, unknown, "Not enough buffer space");
+         *info++ = WindowsChannelBitToChannelInfo(i);
+         --n;
+         ++r;
+      }
+   }
+exit:
+   if (ERROR_FAILED(err))
+      r = 0;
+   return r;
+}
+
+
 } } // end namespace

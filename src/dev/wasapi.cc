@@ -63,6 +63,7 @@ class WasapiDev : public Device
    HANDLE event;
    ComPtr<IUnknown> defaultDevMonitor;
    bool deviceChanged;
+   DWORD dwChannelMask;
 
    void
    CleanupOld(void)
@@ -80,7 +81,13 @@ class WasapiDev : public Device
 public:
 
    WasapiDev(IMMDevice *dev_)
-      : devName(nullptr), dev(dev_), started(false), event(nullptr), deviceChanged(false) {}
+      : devName(nullptr),
+        dev(dev_),
+        started(false),
+        event(nullptr),
+        deviceChanged(false),
+        dwChannelMask(0)
+   {}
 
    ~WasapiDev()
    {
@@ -167,6 +174,7 @@ public:
 
       MetadataToWaveFormatEx(metadata, &fmt);
       blockAlign = fmt.Format.nBlockAlign;
+      dwChannelMask = fmt.dwChannelMask;
 
       WaitForSingleObject(event, 0);
 
@@ -203,6 +211,11 @@ retry:
 
    exit:
       ;
+   }
+
+   int GetChannelMap(ChannelInfo *info, int n, error *err)
+   {
+      return windows::GetChannelMap(dwChannelMask, info, n, err);
    }
 
    void
