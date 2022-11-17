@@ -42,6 +42,11 @@ MetadataToWaveFormatEx(const Metadata &md, WAVEFORMATEXTENSIBLE *wfe)
    {
       fmt->wFormatTag = WAVE_FORMAT_PCM;
       fmt->cbSize = 0;
+
+      // Zero out the end of the struct.
+      //
+      auto end = (char*)fmt + sizeof(*fmt);
+      memset(end, 0, sizeof(*wfe) - (end - (char*)wfe));
    }
    else
    {
