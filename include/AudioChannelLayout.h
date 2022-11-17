@@ -29,6 +29,12 @@ ParseWindowsChannelLayout(
    error *err
 );
 
+uint32_t
+ChannelInfoToWindowsChannelBit(ChannelInfo info);
+
+ChannelInfo
+WindowsChannelBitToChannelInfo(int bitno);
+
 void
 GetCommonWavChannelLayout(
    int numChannels,

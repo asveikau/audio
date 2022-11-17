@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <AudioChannelLayout.h>
+
 namespace audio { namespace windows {
 
 static inline void
@@ -55,6 +57,18 @@ MetadataToWaveFormatEx(const Metadata &md, WAVEFORMATEXTENSIBLE *wfe)
          wfe->Samples.wValidBitsPerSample = fmt->wBitsPerSample;
       }
 
+      if (md.ChannelMap.get() && md.ChannelMap->size())
+      {
+         wfe->dwChannelMask = 0;
+
+         for (auto ch : *md.ChannelMap.get())
+         {
+            wfe->dwChannelMask |= ChannelInfoToWindowsChannelBit(ch);
+         }
+
+         goto skipDefaults;
+      }
+
       // XXX This is probably not right
       switch (fmt->nChannels)
       {
@@ -86,6 +100,7 @@ MetadataToWaveFormatEx(const Metadata &md, WAVEFORMATEXTENSIBLE *wfe)
          wfe->dwChannelMask = 0;
       }
 
+skipDefaults:
       switch (md.Format)
       {
       case PcmFloat:

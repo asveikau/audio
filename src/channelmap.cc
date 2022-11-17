@@ -172,6 +172,23 @@ audio::ParseWindowsChannelLayout(
 exit:;
 }
 
+uint32_t
+audio::ChannelInfoToWindowsChannelBit(ChannelInfo info)
+{
+   for(int i=0; i<ARRAY_SIZE(WindowsMappings); ++i)
+      if (WindowsMappings[i] == info)
+         return (1U << (i));
+   return 0;
+}
+
+ChannelInfo
+audio::WindowsChannelBitToChannelInfo(int bitno)
+{
+   if (bitno > 0 && bitno < ARRAY_SIZE(WindowsMappings))
+      return WindowsMappings[bitno];
+   return Unknown;
+}
+
 void
 audio::ApplyWindowsChannelLayout(Metadata &md, uint32_t mask, error *err)
 {
