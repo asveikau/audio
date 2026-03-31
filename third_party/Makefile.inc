@@ -398,6 +398,7 @@ LIBOPUS_CFLAGS += -DHAVE_LRINT
 endif
 LIBOPUS_BASE_SRC=\
    $(LIBOPUS_ROOT)src/analysis.c \
+   $(LIBOPUS_ROOT)src/extensions.c \
    $(LIBOPUS_ROOT)src/mlp_data.c \
    $(LIBOPUS_ROOT)src/mlp.c \
    $(LIBOPUS_ROOT)src/opus_decoder.c \
