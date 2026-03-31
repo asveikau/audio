@@ -520,14 +520,3 @@ void audio::RegisterFlacCodec(error *err)
    ERROR_CHECK(err);
 exit:;
 }
-
-#ifdef _WIN32
-#include <share/compat.h>
-
-FILE *
-flac_fopen(const char *filename, const char *mode)
-{
-   return nullptr;
-}
-#endif
-
