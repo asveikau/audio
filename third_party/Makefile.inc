@@ -666,9 +666,12 @@ LIBFLAC_SRC:= \
    $(LIBFLAC_ROOT)stream_encoder.c \
    $(LIBFLAC_ROOT)window.c
 
+LIBFLAC_WINDOWS_SRC:= \
+   $(LIBFLAC_ROOT)../share/win_utf8_io/win_utf8_io.c
+
 ifeq ($(PLATFORM), windows)
 LIBFLAC_SRC+= \
-   $(LIBFLAC_ROOT)../share/win_utf8_io/win_utf8_io.c
+   $(LIBFLAC_WINDOWS_SRC)
 endif
 
 LIBFLAC_DESCR:=FLAC Codec
